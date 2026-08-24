@@ -20,9 +20,23 @@ Small dashboard app for a sales-incentive campaign ("Cierre de Agosto 2026", BEX
 
 ## Backend / database
 
-- `server.py` connects to PostgreSQL (`rrhh_bd`) via `psycopg2`, reading `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD` env vars with hardcoded non-secret defaults (host `10.0.0.2`, db `rrhh_bd`, user `bex_app`, empty password default).
-- **If `DB_PASSWORD` is unset/empty, the backend skips the DB connection entirely** and serves hardcoded fallback data (`FALLBACK_BNB` / `FALLBACK_BILLE` lists in `server.py`) instead of querying Postgres. This is expected behavior for local dev without DB access, not a bug.
+`server.py` talks to **three** separate PostgreSQL databases on the same server (`10.0.0.2:5432`), not one:
+
+| DB | Role/credential | Purpose |
+|---|---|---|
+| `rrhh_bd` | `bex_app` / `DB_PASSWORD` | Employee list (name, city, supervisor, `telefono`) for active BNB unit staff |
+| `bnb_bd` | `bex_ingeniero` / `RRHH_PG_PASSWORD` | Raw `fact_afiliaciones` — real BNB campaign production |
+| `bille_bd` | `bex_ingeniero` / `RRHH_PG_PASSWORD` | Raw `fact_afiliaciones` — real BILLE campaign production |
+
+- **BILLE is not a separate business unit — it's a campaign of BNB.** Both campaigns are measured against the *same* active BNB-unit employees, matched by phone number (`empleado_unidad.telefono`).
+- In `bnb_bd`/`bille_bd`, the column `fact_afiliaciones.codigo_bex` actually stores the **phone number** (not a business code) — that's the join key against `empleado_unidad.telefono`. This is a documented gotcha from the sibling RRHH migration project, not a mistake in this code.
+- Counts are filtered by exact `fecha_hora_envio` in the campaign window (`CAMPANA_DESDE`/`CAMPANA_HASTA_EXCLUSIVO`, currently 24–31 Aug 2026), **never** read from `rrhh_bd.actividad_afiliacion_mensual` — that table aggregates by calendar month and would overcount, since the campaign is a partial-month window.
+- Dedup ("producción no duplicada" per `correo.txt`) is `COUNT(DISTINCT id_afiliacion)`.
+- `bex_ingeniero` is a privileged migration/reporting role (also used by the separate `rrhh-app`/`Lab` projects at `C:\temp\RRHH\`) — reused here read-only (`conn.set_session(readonly=True)`) rather than provisioning a new role, per explicit user decision. Its password lives only in the `RRHH_PG_PASSWORD` env var, shared with those other projects — never hardcode or version it.
+- **If either `DB_PASSWORD` or `RRHH_PG_PASSWORD` is unset/empty, the backend skips all DB connections entirely** and serves hardcoded fallback data (`FALLBACK_BNB` / `FALLBACK_BILLE` lists in `server.py`) instead — partial real data (e.g. real names with zeroed-out counts because one DB wasn't reachable) is intentionally avoided. This is expected behavior for local dev without DB access, not a bug.
+- A phone number shared by more than one active `empleado_unidad` row (rare, documented in the migration project) is treated as ambiguous and skipped rather than double-counted — see the `vistos` set in `get_incentivos()`.
 - CORS is wide open (`allow_origins=["*"]`) — fine for local dev, would need tightening before any real deployment.
+- A `.mcp.json` at the repo root declares read-only MCP Postgres connections to `rrhh_bd`, `bnb_bd`, and `bille_bd` (same `bex_ingeniero`/`RRHH_PG_PASSWORD` credential) so Claude Code can inspect the real schema directly — requires a Claude Code restart to pick up after being added/changed.
 
 ## Campaign rules — keep in sync across files
 

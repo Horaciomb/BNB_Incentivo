@@ -20,12 +20,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuración de Base de Datos PostgreSQL
+# Configuración de Base de Datos PostgreSQL — rrhh_bd (datos de empleados)
 DB_HOST = os.getenv("DB_HOST", "10.0.0.2")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "rrhh_bd")
 DB_USER = os.getenv("DB_USER", "bex_app")
 DB_PASS = os.getenv("DB_PASSWORD", "")
+
+# Conexión de solo lectura a bnb_bd / bille_bd — producción real de cada campaña.
+# Requiere el rol bex_ingeniero (bex_app no tiene acceso a estas bases). Mismo patrón
+# de credenciales que rrhh-app y el proyecto de migración RRHH_BD: variable de entorno
+# RRHH_PG_PASSWORD, nunca hardcodeada ni versionada.
+RRHH_PG_HOST = os.getenv("RRHH_PG_HOST", DB_HOST)
+RRHH_PG_PORT = int(os.getenv("RRHH_PG_PORT", str(DB_PORT)))
+RRHH_PG_USER = os.getenv("RRHH_PG_USER", "bex_ingeniero")
+RRHH_PG_PASSWORD = os.getenv("RRHH_PG_PASSWORD", "")
+
+# Ventana exacta de la campaña (correo.txt: 24 al 31 de agosto de 2026). Se filtra por
+# fecha_hora_envio en fact_afiliaciones, NUNCA por el agregado mensual
+# rrhh_bd.actividad_afiliacion_mensual — ese agregado cubre el mes completo y
+# sobrecontaría cuentas generadas antes del 24.
+CAMPANA_DESDE = "2026-08-24"
+CAMPANA_HASTA_EXCLUSIVO = "2026-09-01"
 
 # Configuración oficial según correo.txt (Cierre de Agosto 2026: 24 al 31 de agosto)
 META_CONFIG = {
@@ -117,54 +133,89 @@ def _procesar_lista(raw_list: List[Dict[str, Any]], target_proj: str) -> List[Di
     res.sort(key=lambda x: x["cuentas"], reverse=True)
     return res
 
+def _obtener_empleados_activos_bnb() -> List[Dict[str, Any]]:
+    """Empleados activos de la unidad BNB (que incluye la campaña BILLE) desde rrhh_bd,
+    con su teléfono — la llave de cruce contra bnb_bd/bille_bd.fact_afiliaciones."""
+    conn = psycopg2.connect(
+        host=DB_HOST, port=DB_PORT, dbname=DB_NAME,
+        user=DB_USER, password=DB_PASS, connect_timeout=3
+    )
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT
+                    TRIM(CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno)) AS nombre,
+                    COALESCE(c.nombre_ciudad, 'La Paz') AS ciudad,
+                    COALESCE(u.nombre_completo, 'BEX') AS supervisor,
+                    TRIM(eu.telefono) AS telefono
+                FROM empleado_unidad eu
+                JOIN persona p ON p.id_persona = eu.id_persona
+                JOIN unidad_negocio un ON un.id_unidad_negocio = eu.id_unidad_negocio
+                LEFT JOIN ciudad c ON c.id_ciudad = eu.id_ciudad
+                LEFT JOIN usuario u ON u.id_usuario = eu.id_usuario_supervisor
+                WHERE un.codigo = 'BNB' AND eu.activo = true
+                  AND eu.telefono IS NOT NULL AND TRIM(eu.telefono) <> ''
+            """)
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+def _contar_afiliaciones_por_celular(dbname: str) -> Dict[str, int]:
+    """Cuentas no duplicadas por celular dentro de la ventana de campaña, leídas
+    directo de fact_afiliaciones en bnb_bd o bille_bd (bex_ingeniero, solo lectura).
+    codigo_bex en estas bases guarda el CELULAR, no un código de negocio."""
+    conn = psycopg2.connect(
+        host=RRHH_PG_HOST, port=RRHH_PG_PORT, dbname=dbname,
+        user=RRHH_PG_USER, password=RRHH_PG_PASSWORD, connect_timeout=5
+    )
+    try:
+        conn.set_session(readonly=True)
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT TRIM(codigo_bex) AS celular, COUNT(DISTINCT id_afiliacion) AS cuentas
+                FROM fact_afiliaciones
+                WHERE codigo_bex IS NOT NULL AND TRIM(codigo_bex) <> ''
+                  AND fecha_hora_envio >= %(desde)s AND fecha_hora_envio < %(hasta)s
+                GROUP BY 1
+            """, {"desde": CAMPANA_DESDE, "hasta": CAMPANA_HASTA_EXCLUSIVO})
+            return {celular: cuentas for celular, cuentas in cur.fetchall()}
+    finally:
+        conn.close()
+
 @app.get("/api/incentivos/cierre-agosto")
 def get_incentivos():
     bnb_items = []
     bille_items = []
-    
-    if DB_PASS:
+
+    if DB_PASS and RRHH_PG_PASSWORD:
         try:
-            conn = psycopg2.connect(
-                host=DB_HOST, port=DB_PORT, dbname=DB_NAME,
-                user=DB_USER, password=DB_PASS, connect_timeout=3
-            )
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                # Consulta para el periodo de campaña 24 al 31 de agosto de 2026
-                query = """
-                    SELECT 
-                        TRIM(CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno)) AS nombre,
-                        COALESCE(c.nombre_ciudad, 'La Paz') AS ciudad,
-                        COALESCE(u.nombre_completo, 'BEX') AS supervisor,
-                        COALESCE(act_bnb.afiliaciones, 0)::int AS cuentas_bnb,
-                        COALESCE(act_bille.afiliaciones, 0)::int AS cuentas_bille
-                    FROM empleado_unidad eu
-                    JOIN persona p ON p.id_persona = eu.id_persona
-                    JOIN unidad_negocio un ON un.id_unidad_negocio = eu.id_unidad_negocio
-                    LEFT JOIN ciudad c ON c.id_ciudad = eu.id_ciudad
-                    LEFT JOIN usuario u ON u.id_usuario = eu.id_usuario_supervisor
-                    LEFT JOIN (
-                        SELECT a.id_empleado, SUM(a.cantidad_afiliaciones) AS afiliaciones
-                        FROM actividad_afiliacion_mensual a
-                        JOIN campana ca ON ca.id_campana = a.id_campana
-                        WHERE ca.codigo = 'BNB'
-                        GROUP BY a.id_empleado
-                    ) act_bnb ON act_bnb.id_empleado = eu.id_empleado
-                    LEFT JOIN (
-                        SELECT a.id_empleado, SUM(a.cantidad_afiliaciones) AS afiliaciones
-                        FROM actividad_afiliacion_mensual a
-                        JOIN campana ca ON ca.id_campana = a.id_campana
-                        WHERE ca.codigo = 'BILLE'
-                        GROUP BY a.id_empleado
-                    ) act_bille ON act_bille.id_empleado = eu.id_empleado
-                    WHERE un.codigo = 'BNB' AND eu.activo = true;
-                """
-                cur.execute(query)
-                rows = cur.fetchall()
-                if rows:
-                    raw_data = [dict(r) for r in rows]
-                    bnb_items = _procesar_lista(raw_data, "BNB")
-                    bille_items = _procesar_lista(raw_data, "BILLE")
-            conn.close()
+            empleados = _obtener_empleados_activos_bnb()
+            mapa_bnb = _contar_afiliaciones_por_celular("bnb_bd")
+            mapa_bille = _contar_afiliaciones_por_celular("bille_bd")
+
+            raw_data = []
+            vistos = set()
+            for e in empleados:
+                tel = e["telefono"]
+                if tel in vistos:
+                    # Mismo celular en más de un empleado_unidad activo — caso
+                    # ambiguo documentado en el proyecto de migración (10-15 casos
+                    # históricos). Se omite el duplicado en vez de contar la
+                    # producción dos veces.
+                    print(f"Celular duplicado entre activos BNB, se omite: {tel}")
+                    continue
+                vistos.add(tel)
+                raw_data.append({
+                    "nombre": e["nombre"],
+                    "ciudad": e["ciudad"],
+                    "supervisor": e["supervisor"],
+                    "cuentas_bnb": mapa_bnb.get(tel, 0),
+                    "cuentas_bille": mapa_bille.get(tel, 0),
+                })
+
+            if raw_data:
+                bnb_items = _procesar_lista(raw_data, "BNB")
+                bille_items = _procesar_lista(raw_data, "BILLE")
         except Exception as e:
             print(f"Error conectando a BD PostgreSQL: {e}")
 

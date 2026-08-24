@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "postgres-rrhh": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://bex_ingeniero:${RRHH_PG_PASSWORD}@10.0.0.2:5432/rrhh_bd"
+      ]
+    },
+    "postgres-bnb": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://bex_ingeniero:${RRHH_PG_PASSWORD}@10.0.0.2:5432/bnb_bd"
+      ]
+    },
+    "postgres-bille": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://bex_ingeniero:${RRHH_PG_PASSWORD}@10.0.0.2:5432/bille_bd"
+      ]
+    }
+  }
+}
