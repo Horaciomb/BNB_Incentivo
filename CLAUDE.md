@@ -15,8 +15,19 @@ Small dashboard app for a sales-incentive campaign ("Cierre de Agosto 2026", BEX
 - Frontend build: `npm run build`. Preview build: `npm run preview`.
 - Backend: `python server.py` (or `uvicorn server:app`) → runs on **port 8000**. Activate the venv on Windows with `venv\Scripts\Activate.ps1`, not a POSIX `bin/activate`.
 - Both must be running together for live data; the frontend falls back to hardcoded static data if the backend is unreachable (see below).
-- No `requirements.txt` exists. The venv's pinned packages: `fastapi==0.141.1`, `uvicorn==0.52.4`, `psycopg2-binary==2.9.12`, `pydantic==2.13.4` (plus transitive deps). Regenerate a manifest from the venv (`venv\Scripts\pip.exe freeze`) if one is needed.
+- `requirements.txt` exists but is pinned to match production's **shared** venv (see Deployment below), not the local venv's own versions — the local venv (`venv\Scripts\pip.exe freeze`) may run newer `fastapi`/`uvicorn` than what's pinned here; that's expected, don't "fix" it by bumping the pins without checking prod first.
 - No test suite, linter, or formatter is configured anywhere in this repo.
+
+## Deployment
+
+Live at **https://srv.beneficioslatam.com/convocatoria/bnb/** (production server `10.0.0.2`, shared Caddy instance hosting ~20 apps — `C:\Caddy\Caddyfile`). Deployed following the BNB-unit convention (nssm service, not the rrhh-app pattern — see `deploy/_comun.ps1` for exact names/paths):
+
+- Service: nssm `web_bnb_convocatoria`, running `uvicorn api.main:app --host 127.0.0.1 --port 8221` from `C:\Proyectos\BNB\web\convocatoria\api\`, venv `C:\uv-envs\bnb\Scripts\python.exe` (**shared** across ~8 other BNB apps — see requirements.txt note below).
+- Frontend static files live alongside the backend in `C:\Proyectos\BNB\web\convocatoria\` (same folder as `api\`, matching the `afilia\bille` app's layout) — Caddy blocks serving `.py`/`.env`/etc. as static via a `@deny` rule, so co-location is safe and is the established convention here, not an oversight.
+- Credentials: `C:\Proyectos\BNB\web\convocatoria\api\.env` (gitignored, not on this machine) with `DB_PASSWORD` and `RRHH_PG_PASSWORD` — loaded via `python-dotenv` (`load_dotenv()` in `server.py`).
+- Redeploy: `.\deploy\deploy-backend.ps1` (guards against deploying an uncommitted tree; installs into the **shared** BNB venv) and `.\deploy\deploy-frontend.ps1` (builds with `vite.config.js`'s production `base: '/convocatoria/bnb/'`, uploads to a temp folder, merges via `robocopy /MIR /XD api` — a full-folder swap like rrhh-app's would delete the co-located backend).
+- **`requirements.txt` pins `fastapi`/`uvicorn` to what the shared venv already had** (`0.136.3`/`0.49.0`), not newer versions — a plain `uv pip install -r requirements.txt` on a shared venv silently upgrades every other app sharing it on their next restart. Check `uv pip list --python C:\uv-envs\bnb\Scripts\python.exe` before ever bumping these.
+- The `/convocatoria/bnb/*` Caddy block is the **only app on this server whose route doesn't follow the `/<unit>/<app>/` convention** (everything else, including 4 other BNB apps, is `/bnb/<app>/`) — a deliberate user choice made with the inconsistency flagged, not an oversight. `deploy/caddy_snippet_convocatoria.txt` has the exact block if it ever needs restoring.
 
 ## Backend / database
 
