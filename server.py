@@ -1,10 +1,16 @@
 import os
 from datetime import datetime
 from typing import Dict, List, Any
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
+# Carga .env si existe (patron de las demas apps BNB en el servidor: Caddy
+# bloquea servir .env como estatico globalmente). Sin archivo, no hace nada
+# y os.getenv sigue leyendo del entorno del proceso, como antes.
+load_dotenv()
 
 app = FastAPI(
     title="API Incentivos BEX - Cierre de Agosto 2026",
@@ -181,6 +187,10 @@ def _contar_afiliaciones_por_celular(dbname: str) -> Dict[str, int]:
             return {celular: cuentas for celular, cuentas in cur.fetchall()}
     finally:
         conn.close()
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "database": "configurada" if (DB_PASS and RRHH_PG_PASSWORD) else "sin credenciales"}
 
 @app.get("/api/incentivos/cierre-agosto")
 def get_incentivos():

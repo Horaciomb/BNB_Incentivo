@@ -43,3 +43,6 @@ yarn-error.log*
 # System Files
 .DS_Store
 Thumbs.db
+
+# Claude Code personal settings
+.claude/settings.local.json
