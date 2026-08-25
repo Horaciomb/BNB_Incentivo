@@ -1,12 +1,22 @@
 @import "tailwindcss";
 
+@theme {
+  --color-bnb: #408358;
+  --color-bnb-dark: #306242;
+  --color-bnb-light: #e2ece6;
+
+  --color-bille: #3fa89a;
+  --color-bille-dark: #2f7e73;
+  --color-bille-light: #e1f3f0;
+}
+
 html, body {
   overflow-x: hidden;
 }
 
 @keyframes popIn {
   0% {
-    transform: scale(0.9) translateY(10px);
+    transform: scale(0.94) translateY(6px);
     opacity: 0;
   }
   100% {
@@ -16,5 +26,5 @@ html, body {
 }
 
 .animate-flyer {
-  animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: popIn 0.3s cubic-bezier(0.2, 0, 0, 1) forwards;
 }
