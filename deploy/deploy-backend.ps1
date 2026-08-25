@@ -64,9 +64,9 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "-> Verificando /api/health (via localhost en el servidor, aun sin ruta Caddy)..."
 Start-Sleep -Seconds 3
-$health = ssh $Servidor "powershell -Command `"(Invoke-RestMethod -Uri 'http://127.0.0.1:8221/api/health' -TimeoutSec 10 | ConvertTo-Json -Compress)`""
+$health = ssh $Servidor "curl -s http://127.0.0.1:8221/api/health"
 if ($LASTEXITCODE -ne 0 -or -not $health) {
-    Write-Host "ERROR: /api/health no respondio. Log: $AppDir\api\logs (si esta configurado) o Visor de eventos." -ForegroundColor Red
+    Write-Host "ERROR: /api/health no respondio. Log: $AppDir\api\stderr.log" -ForegroundColor Red
     exit 1
 }
 Write-Host ""
