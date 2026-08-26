@@ -127,9 +127,16 @@ export default function App() {
   }, [processedSet])
 
   const distinctSups = useMemo(() => {
-    const set = Array.from(new Set(processedSet.map(d => d.supervisor))).filter(Boolean).sort()
+    const base = selCity === 'ALL' ? processedSet : processedSet.filter(d => d.ciudad === selCity)
+    const set = Array.from(new Set(base.map(d => d.supervisor))).filter(Boolean).sort()
     return ['ALL', ...set]
-  }, [processedSet])
+  }, [processedSet, selCity])
+
+  useEffect(() => {
+    if (selSup !== 'ALL' && !distinctSups.includes(selSup)) {
+      setSelSup('ALL')
+    }
+  }, [distinctSups, selSup])
 
   const filteredData = useMemo(() => {
     return processedSet
