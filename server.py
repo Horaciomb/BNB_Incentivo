@@ -152,13 +152,16 @@ def _obtener_empleados_activos_bnb() -> List[Dict[str, Any]]:
                 SELECT
                     TRIM(CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno)) AS nombre,
                     COALESCE(c.nombre_ciudad, 'La Paz') AS ciudad,
-                    COALESCE(u.nombre_completo, 'BEX') AS supervisor,
+                    COALESCE(
+                        NULLIF(TRIM(CONCAT_WS(' ', sup.nombres, sup.apellido_paterno, sup.apellido_materno)), ''),
+                        'BEX'
+                    ) AS supervisor,
                     TRIM(eu.telefono) AS telefono
                 FROM empleado_unidad eu
                 JOIN persona p ON p.id_persona = eu.id_persona
                 JOIN unidad_negocio un ON un.id_unidad_negocio = eu.id_unidad_negocio
                 LEFT JOIN ciudad c ON c.id_ciudad = eu.id_ciudad
-                LEFT JOIN usuario u ON u.id_usuario = eu.id_usuario_supervisor
+                LEFT JOIN persona sup ON sup.id_persona = eu.id_persona_supervisor
                 WHERE un.codigo = 'BNB' AND eu.activo = true
                   AND eu.telefono IS NOT NULL AND TRIM(eu.telefono) <> ''
             """)
