@@ -2,7 +2,7 @@
 	# BNB - Convocatoria Incentivos Cierre de Agosto (FastAPI + React)
 	# -----------------------------------------
 	handle /convocatoria/bnb/api/* {
-		uri strip_prefix /convocatoria/bnb/api
+		uri strip_prefix /convocatoria/bnb
 		reverse_proxy 127.0.0.1:8221 {
 			header_up X-Forwarded-Prefix /convocatoria/bnb
 			header_up X-Real-IP {remote_host}
