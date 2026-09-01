@@ -11,7 +11,9 @@ export default defineConfig(({ command }) => ({
     port: 5175,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // Puerto del backend local. Se puede mover con BACKEND_PORT cuando otra
+        // app de la maquina ya ocupa el 8000.
+        target: `http://localhost:${process.env.BACKEND_PORT || 8000}`,
         changeOrigin: true,
       },
     },
