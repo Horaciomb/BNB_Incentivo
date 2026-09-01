@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bnb: #408358;
-  --color-bnb-dark: #306242;
-  --color-bnb-light: #e2ece6;
+  --color-bnb: #10b981;
+  --color-bnb-dark: #059669;
+  --color-bnb-light: #d1fae5;
 
-  --color-bille: #3fa89a;
-  --color-bille-dark: #2f7e73;
-  --color-bille-light: #e1f3f0;
+  --color-bille: #4f46e5;
+  --color-bille-dark: #4338ca;
+  --color-bille-light: #e0e7ff;
 }
 
 html, body {
