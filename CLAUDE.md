@@ -11,7 +11,7 @@ Small dashboard app for a sales-incentive campaign ("Cierre de Agosto 2026", BEX
 
 ## Running the app
 
-- Frontend dev server: `npm run dev` → Vite on **port 5175** (hardcoded in `vite.config.js`, not Vite's default 5173). Proxies `/api/*` to `http://localhost:8000`.
+- Frontend dev server: `npm run dev` → Vite on **port 5175** (hardcoded in `vite.config.js`, not Vite's default 5173). Proxies `/api/*` to `http://localhost:8000`, or to `BACKEND_PORT` if that env var is set (other apps on this machine sometimes hold 8000).
 - Frontend build: `npm run build`. Preview build: `npm run preview`.
 - Backend: `python server.py` (or `uvicorn server:app`) → runs on **port 8000**. Activate the venv on Windows with `venv\Scripts\Activate.ps1`, not a POSIX `bin/activate`.
 - Both must be running together for live data; the frontend falls back to hardcoded static data if the backend is unreachable (see below).
@@ -51,15 +51,24 @@ Live at **https://srv.beneficioslatam.com/convocatoria/bnb/** (production server
 - CORS is wide open (`allow_origins=["*"]`) — fine for local dev, would need tightening before any real deployment.
 - A `.mcp.json` at the repo root declares read-only MCP Postgres connections to `rrhh_bd`, `bnb_bd`, and `bille_bd` (same `bex_ingeniero`/`RRHH_PG_PASSWORD` credential) so Claude Code can inspect the real schema directly — requires a Claude Code restart to pick up after being added/changed.
 
-## Campaign rules — keep in sync across files
+## Campaign rules — `campanas.json` is the single source of truth
 
-Campaign targets/prizes are duplicated independently in two places and must be edited together if the campaign changes:
-- `server.py` → `META_CONFIG` dict
-- `src/App.jsx` → `CAMPAIGN_RULES` constant
+The app serves **several campaigns from one URL**, picked from a `<select>` in the header. All rules (window, per-project targets/prizes, double-goal bonus, supervisor bonus) live in **`campanas.json`** at the repo root, deployed to `C:\Proyectos\BNB\web\convocatoria\api\campanas.json`. The frontend receives them through the API and duplicates no target or prize — the old `META_CONFIG` / `CAMPAIGN_RULES` pair is gone.
 
-Current rule (per `correo.txt`, period 24–31 Aug 2026): BNB target 60 cuentas / Bs.150, Bille target 70 cuentas / Bs.150, both met → Bs.300 ("Bono Doble Meta").
+Adding a campaign = appending an object to `campanas.json`. Nothing else changes: no Python edit, no frontend rebuild. `server.py` re-reads the file **by mtime**, so editing it directly on the server takes effect **without restarting the nssm service**. A malformed file fails loudly (`/api/health` reports `campanas_cargadas: 0` and `error_config`), it never degrades silently.
 
-Fallback employee datasets are *also* duplicated: `server.py` (`FALLBACK_BNB`/`FALLBACK_BILLE`) and `src/App.jsx` (`STATIC_BNB_DATA`/`STATIC_BILLE_DATA`).
+Per campaign: `id`, `nombre`, `subtitulo`, `desde`/`hasta` (inclusive, ISO), `periodo_texto`, `proyectos[]`, `doble`, `supervisor` (or `null`).
+Per project: `key` (`BNB`/`BILLE` — indexes the counts), `etiqueta` (**visible label**), `bd` (`bnb_bd`/`bille_bd`), `tema` (`bnb`/`bille`, picks the Tailwind palette), `meta`, `premio_bs`. The array order is the tab order.
+
+- **`etiqueta` is decoupled from `bd` on purpose**: the September campaign shows `bnb_bd` production as **"QR"**, the August one shows it as **"BNB"**, per each official email.
+- `hasta_exclusivo` (what goes into the SQL `fecha_hora_envio <` filter) is derived as `hasta + 1 día` — never write it in the JSON.
+- **Visibility window**: `/api/campanas` serves campaigns that are running, upcoming, or finished less than **3 months** ago (`MESES_HISTORICO` in `server.py`). Older ones stay in the file but return 404. Past campaigns are **recalculated live** from `fact_afiliaciones` — there are no snapshots, so a later correction in the source data changes the history.
+- Results are cached in memory per campaign: 5 min while running, 1 h once finished.
+- Current campaigns (per `correo.txt`): *Cierre de Agosto* 24–31 Aug 2026 (BNB 60 / Bille 70, Bs.150 each, both → Bs.300) and *Incentivo Inicio de Mes* 1–6 Sep 2026 (same targets, plus **Bs.20 per team member who earns any bonus** for supervisors — counted **once per person**, not once per bonus, so a Bs.300 double-goal earner still contributes Bs.20).
+
+Fallback data is no longer duplicated either: a single `FALLBACK_ROSTER` in `server.py` serves any campaign, and the response marks it with `es_respaldo: true` so the UI shows an explicit "datos de demostración" banner. **The frontend has no static dataset anymore** — if the backend itself is unreachable it shows an error with a Retry button rather than inventing numbers.
+
+Frontend layout: `src/App.jsx` is the orchestrator (state, fetch, tabs); `src/campaign.js` holds the theme map and the shared prize logic; sections live in `src/sections/`, shared widgets in `src/components/`. Tailwind v4 cannot see runtime-built class names, so every theme class is written in full in `campaign.js` — never build one with a template literal.
 
 ## Legacy files — not part of the active app
 
