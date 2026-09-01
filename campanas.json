@@ -1,0 +1,42 @@
+{
+  "campanas": [
+    {
+      "id": "cierre-agosto-2026",
+      "nombre": "Cierre de Agosto",
+      "subtitulo": "Campaña de incentivos por producción",
+      "desde": "2026-08-24",
+      "hasta": "2026-08-31",
+      "periodo_texto": "24 al 31 de Agosto de 2026",
+      "proyectos": [
+        { "key": "BNB",   "etiqueta": "BNB",   "bd": "bnb_bd",   "tema": "bnb",   "meta": 60, "premio_bs": 150 },
+        { "key": "BILLE", "etiqueta": "Bille", "bd": "bille_bd", "tema": "bille", "meta": 70, "premio_bs": 150 }
+      ],
+      "doble": {
+        "titulo": "Bono Doble Meta",
+        "premio_bs": 300
+      },
+      "supervisor": null
+    },
+    {
+      "id": "inicio-mes-septiembre-2026",
+      "nombre": "Incentivo Inicio de Mes",
+      "subtitulo": "Impulsemos juntos la producción en el inicio del mes",
+      "desde": "2026-09-01",
+      "hasta": "2026-09-06",
+      "periodo_texto": "1 al 6 de Septiembre de 2026",
+      "proyectos": [
+        { "key": "BILLE", "etiqueta": "Bille", "bd": "bille_bd", "tema": "bille", "meta": 70, "premio_bs": 150 },
+        { "key": "BNB",   "etiqueta": "QR",    "bd": "bnb_bd",   "tema": "bnb",   "meta": 60, "premio_bs": 150 }
+      ],
+      "doble": {
+        "titulo": "Bono Doble Meta",
+        "premio_bs": 300
+      },
+      "supervisor": {
+        "titulo": "Incentivo Supervisores",
+        "bs_por_afiliador": 20,
+        "descripcion": "Por cada afiliador de tu equipo que logre cobrar un bono de la campaña, recibes Bs 20 en vales de consumo."
+      }
+    }
+  ]
+}
