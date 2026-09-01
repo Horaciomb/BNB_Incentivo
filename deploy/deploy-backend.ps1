@@ -9,9 +9,9 @@ Write-Host ">> Deploy backend - Incentivos Cierre Agosto (BNB)" -ForegroundColor
 
 # Guarda de arbol limpio, mismo motivo que rrhh-app/deploy/deploy-backend.ps1:
 # scp copia el WORKING TREE, no un commit.
-$sucio = git -C $root status --porcelain -- server.py requirements.txt
+$sucio = git -C $root status --porcelain -- server.py requirements.txt campanas.json
 if ($sucio -and -not $PermitirArbolSucio) {
-    Write-Host "ERROR: hay cambios sin commitear en server.py o requirements.txt." -ForegroundColor Red
+    Write-Host "ERROR: hay cambios sin commitear en server.py, requirements.txt o campanas.json." -ForegroundColor Red
     Write-Host "       scp copia el working tree, no un commit: esto se iria a PRODUCCION." -ForegroundColor Red
     Write-Host ""
     $sucio | ForEach-Object { Write-Host "       $_" -ForegroundColor Yellow }
@@ -35,6 +35,11 @@ if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: scp server.py fallo" -ForegroundCo
 
 scp "$root\requirements.txt" "${Servidor}:/$AppDir/api/requirements.txt"
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: scp requirements.txt fallo" -ForegroundColor Red; exit 1 }
+
+# Reglas de las campanas. server.py lo relee por mtime, asi que editarlo en el
+# servidor surte efecto sin reiniciar el servicio; aqui va la version del repo.
+scp "$root\campanas.json" "${Servidor}:/$AppDir/api/campanas.json"
+if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: scp campanas.json fallo" -ForegroundColor Red; exit 1 }
 
 Write-Host "-> Instalando dependencias en el venv compartido de BNB..."
 ssh $Servidor "uv pip install --python $PyVenv -r $AppDir/api/requirements.txt"
