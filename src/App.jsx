@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { fetchCampanas, fetchIncentivos } from './api'
 import { temaDe, buscarProyecto } from './campaign'
-import { Target, Trophy, Calculator, ListFilter, Users, Download, Loader2 } from 'lucide-react'
+import { Target, Trophy, Calculator, ListFilter, Users } from 'lucide-react'
 import { generarReporte } from './export'
 
 import CampaignPicker from './components/CampaignPicker'
@@ -217,16 +217,18 @@ export default function App() {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
+            {/* Descarga el reporte de contabilidad al hacer clic. A pedido del
+                usuario no se anuncia: mismo aspecto que el sello de marca que
+                habia antes, sin icono ni tooltip. La unica senal es que se
+                atenua mientras arma el archivo, y eso ademas evita la doble
+                descarga por doble clic. */}
             <button
               onClick={descargarReporte}
               disabled={!campana || exportando}
-              title="Descargar reporte Excel para contabilidad"
-              aria-label="Descargar reporte Excel para contabilidad"
-              className="flex items-center gap-1.5 bg-white text-slate-900 font-semibold text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-[background-color,transform] hover:bg-slate-100 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`bg-white text-slate-900 font-semibold text-xs px-3 py-1.5 rounded-lg transition-opacity ${
+                exportando ? 'opacity-60' : ''
+              }`}
             >
-              {exportando
-                ? <Loader2 size={13} strokeWidth={2} className="shrink-0 animate-spin" />
-                : <Download size={13} strokeWidth={2} className="shrink-0" />}
               BEX
             </button>
             {campanaSel?.estado === 'pasada' && (
