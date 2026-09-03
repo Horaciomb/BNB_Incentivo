@@ -124,6 +124,13 @@ export default function DetailSection({
                     <h4 className="text-xs font-semibold text-slate-900">{item.nombre}</h4>
                     <p className="flex items-center gap-2 text-[10px] text-slate-400 font-medium mt-0.5">
                       <span className="flex items-center gap-0.5"><MapPin size={10} strokeWidth={2} className="shrink-0" />{item.ciudad.toUpperCase()}</span>
+                      {/* Un inactivo aca produjo dentro de la campana: cobra el
+                          bono aunque ya no este en la empresa. */}
+                      {item.activo === false && (
+                        <span className="text-[9px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                          Inactivo
+                        </span>
+                      )}
                       <span className="flex items-center gap-0.5"><Users size={10} strokeWidth={2} className="shrink-0" />{item.supervisor}</span>
                     </p>
                   </div>
