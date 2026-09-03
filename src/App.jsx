@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { fetchCampanas, fetchIncentivos } from './api'
 import { temaDe, buscarProyecto } from './campaign'
-import { Target, Trophy, Calculator, ListFilter, Users } from 'lucide-react'
+import { Target, Trophy, Calculator, ListFilter, Users, Download, Loader2 } from 'lucide-react'
+import { generarReporte } from './export'
 
 import CampaignPicker from './components/CampaignPicker'
 import ProjectTabs from './components/ProjectTabs'
@@ -40,6 +41,7 @@ export default function App() {
   const [selSup, setSelSup] = useState('ALL')
   const [searchTerm, setSearchTerm] = useState('')
   const [sim, setSim] = useState({})
+  const [exportando, setExportando] = useState(false)
 
   // 1) Lista de campañas elegibles.
   useEffect(() => {
@@ -180,6 +182,24 @@ export default function App() {
     setSim(prev => ({ ...prev, [key]: valor }))
   }, [])
 
+  // Reporte para contabilidad: siempre la campana completa, sin los filtros de
+  // pantalla, para que el archivo no dependa de como quedo la vista.
+  const descargarReporte = useCallback(async () => {
+    if (!data?.campana) return
+    setExportando(true)
+    try {
+      await generarReporte({
+        campana: data.campana,
+        afiliadores: data.afiliadores,
+        supervisores: data.supervisores
+      })
+    } catch (err) {
+      setError(`No se pudo generar el reporte: ${err.message}`)
+    } finally {
+      setExportando(false)
+    }
+  }, [data])
+
   const campanaSel = campanas.find(c => c.id === campanaId)
   const anio = campana?.hasta?.slice(0, 4) || campanaSel?.hasta?.slice(0, 4) || ''
 
@@ -197,7 +217,18 @@ export default function App() {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <div className="bg-white text-slate-900 font-semibold text-xs px-3 py-1.5 rounded-lg">BEX</div>
+            <button
+              onClick={descargarReporte}
+              disabled={!campana || exportando}
+              title="Descargar reporte Excel para contabilidad"
+              aria-label="Descargar reporte Excel para contabilidad"
+              className="flex items-center gap-1.5 bg-white text-slate-900 font-semibold text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-[background-color,transform] hover:bg-slate-100 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exportando
+                ? <Loader2 size={13} strokeWidth={2} className="shrink-0 animate-spin" />
+                : <Download size={13} strokeWidth={2} className="shrink-0" />}
+              BEX
+            </button>
             {campanaSel?.estado === 'pasada' && (
               <span className="text-[9px] font-semibold uppercase tracking-wide bg-white/10 border border-white/20 px-2 py-0.5 rounded-md">
                 Finalizada
