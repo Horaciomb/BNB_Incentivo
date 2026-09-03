@@ -166,12 +166,12 @@ FALLBACK_ROSTER = [
     {"nombre": "JHOJAN JAIRO CALLAHUARA CHOQUE", "ci": "88888805", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 38, "cuentas_bille": 5},
     {"nombre": "LUIS ANGEL SIHUAIROS CANO", "ci": "88888806", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 58, "cuentas_bille": 61},
     {"nombre": "MARCO ANTONIO ESCOBAR ALVAREZ", "ci": "88888807", "ciudad": "Santa Cruz", "supervisor": "BEATRIZ OVIEDO OVIEDO", "cuentas_bnb": 22, "cuentas_bille": 4},
-    {"nombre": "PABLO SANTIAGO PEREZ NAVA", "ci": "88888808", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 71, "cuentas_bille": 14},
+    {"nombre": "PABLO SANTIAGO PEREZ NAVA", "ci": "88888808", "ciudad": "Cochabamba", "activo": False, "fecha_baja": "2026-09-02", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 71, "cuentas_bille": 14},
     {"nombre": "RENE NUÑEZ SOLIS", "ci": "88888809", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 52, "cuentas_bille": 71},
     {"nombre": "REYNA IVONNE CALLE NINA", "ci": "88888810", "ciudad": "La Paz", "supervisor": "CLAUDIA SHASKIA CALLE NINA", "cuentas_bnb": 60, "cuentas_bille": 35},
     {"nombre": "BRUNO ROCHA PEREIRA", "ci": "88888811", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 10, "cuentas_bille": 58},
     {"nombre": "CAMILA ANDREA LOZA MERINO", "ci": "88888812", "ciudad": "La Paz", "supervisor": "GERCY EVER ERGUETA KIPPES", "cuentas_bnb": 15, "cuentas_bille": 42},
-    {"nombre": "DANIELA ASCARRAGA DOMINGUEZ", "ci": "88888813", "ciudad": "Santa Cruz", "supervisor": "JOSE GUTIERREZ PEDRAZA", "cuentas_bnb": 20, "cuentas_bille": 72},
+    {"nombre": "DANIELA ASCARRAGA DOMINGUEZ", "ci": "88888813", "ciudad": "Santa Cruz", "activo": False, "fecha_baja": "2026-08-28", "supervisor": "JOSE GUTIERREZ PEDRAZA", "cuentas_bnb": 20, "cuentas_bille": 72},
     {"nombre": "JOHANNA CASSANDRA CHAVEZ VALERIANO", "ci": "88888814", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 8, "cuentas_bille": 30},
     {"nombre": "JOSÉ OLAF ROJAS CONDARCO", "ci": "88888815", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 14, "cuentas_bille": 56},
     {"nombre": "RUBEN ANTONIO HINOJOSA TUPA", "ci": "88888816", "ciudad": "La Paz", "supervisor": "CLAUDIA SHASKIA CALLE NINA", "cuentas_bnb": 5, "cuentas_bille": 28},
@@ -224,7 +224,12 @@ def _armar_afiliadores(raw_list: List[Dict[str, Any]], campana: Dict[str, Any]) 
             "ci": item.get("ci", ""),
             "supervisor": item.get("supervisor", ""),
             "supervisor_ci": item.get("supervisor_ci", ""),
+            "supervisor_activo": item.get("supervisor_activo"),
             "ciudad": item.get("ciudad", ""),
+            # Estado en personal. Un inactivo que aparece aca produjo dentro de
+            # la campana: gano el bono aunque ya no este en la empresa.
+            "activo": item.get("activo", True),
+            "fecha_baja": item.get("fecha_baja"),
             "cuentas": cuentas,
             **_evaluar_afiliador(cuentas, campana)
         })
@@ -248,13 +253,15 @@ def _armar_supervisores(afiliadores: List[Dict[str, Any]], campana: Dict[str, An
         if not sup or sup == "BEX":
             continue
         eq = equipos.setdefault(sup, {
-            "supervisor": sup, "ci": "", "ciudades": set(),
+            "supervisor": sup, "ci": "", "activo": None, "ciudades": set(),
             "afiliadores_total": 0, "afiliadores_con_bono": 0
         })
-        # El CI del supervisor llega repetido en cada miembro del equipo; basta
-        # con el primero no vacio para poder pagarle su propio bono.
+        # El CI y el estado del supervisor llegan repetidos en cada miembro del
+        # equipo; basta el primero no vacio para poder pagarle su propio bono.
         if not eq["ci"] and a.get("supervisor_ci"):
             eq["ci"] = a["supervisor_ci"]
+        if eq["activo"] is None and a.get("supervisor_activo") is not None:
+            eq["activo"] = bool(a["supervisor_activo"])
         eq["afiliadores_total"] += 1
         if a["premio_bs"] > 0:
             eq["afiliadores_con_bono"] += 1
@@ -294,14 +301,26 @@ def _obtener_empleados_activos_bnb() -> List[Dict[str, Any]]:
                         'BEX'
                     ) AS supervisor,
                     COALESCE(TRIM(sup.ci), '') AS supervisor_ci,
+                    eu.activo,
+                    eu.fecha_baja,
+                    -- Estado del supervisor sin multiplicar filas: una persona
+                    -- puede tener varios periodos en la unidad, basta con que
+                    -- alguno siga abierto. Subconsulta, nunca un JOIN.
+                    (SELECT bool_or(x.activo)
+                       FROM empleado_unidad x
+                      WHERE x.id_persona = eu.id_persona_supervisor) AS supervisor_activo,
                     TRIM(eu.telefono) AS telefono
                 FROM empleado_unidad eu
                 JOIN persona p ON p.id_persona = eu.id_persona
                 JOIN unidad_negocio un ON un.id_unidad_negocio = eu.id_unidad_negocio
                 LEFT JOIN ciudad c ON c.id_ciudad = eu.id_ciudad
                 LEFT JOIN persona sup ON sup.id_persona = eu.id_persona_supervisor
-                WHERE un.codigo = 'BNB' AND eu.activo = true
+                WHERE un.codigo = 'BNB'
                   AND eu.telefono IS NOT NULL AND TRIM(eu.telefono) <> ''
+                -- Los inactivos entran aca y se filtran despues por produccion.
+                -- El orden importa: ante un celular repetido gana la fila activa,
+                -- y entre bajas la mas reciente.
+                ORDER BY eu.activo DESC, eu.fecha_baja DESC NULLS LAST
             """)
             return [dict(r) for r in cur.fetchall()]
     finally:
@@ -358,13 +377,24 @@ def _roster_desde_bd(campana: Dict[str, Any]) -> List[Dict[str, Any]]:
             print(f"Celular duplicado entre activos BNB, se omite: {tel}")
             continue
         vistos.add(tel)
+        cuentas = {p["key"]: mapas[p["bd"]].get(tel, 0) for p in campana["proyectos"]}
+
+        # Los dados de baja solo entran si produjeron dentro de la ventana:
+        # ganaron su bono y contabilidad tiene que pagarlo, pero el historico
+        # completo de ex empleados en cero no aporta nada al tablero.
+        if not e["activo"] and not any(cuentas.values()):
+            continue
+
         raw_data.append({
             "nombre": e["nombre"],
             "ci": e["ci"],
             "ciudad": e["ciudad"],
+            "activo": bool(e["activo"]),
+            "fecha_baja": e["fecha_baja"].isoformat() if e["fecha_baja"] else None,
             "supervisor": e["supervisor"],
             "supervisor_ci": e["supervisor_ci"],
-            "cuentas": {p["key"]: mapas[p["bd"]].get(tel, 0) for p in campana["proyectos"]},
+            "supervisor_activo": e["supervisor_activo"],
+            "cuentas": cuentas,
         })
     return raw_data
 
@@ -374,8 +404,11 @@ def _roster_de_respaldo(campana: Dict[str, Any]) -> List[Dict[str, Any]]:
         "nombre": r["nombre"],
         "ci": r["ci"],
         "ciudad": r["ciudad"],
+        "activo": r.get("activo", True),
+        "fecha_baja": r.get("fecha_baja"),
         "supervisor": r["supervisor"],
         "supervisor_ci": _FALLBACK_CI_SUPERVISOR.get(r["supervisor"], ""),
+        "supervisor_activo": True,
         "cuentas": {p["key"]: r[_FALLBACK_KEY_POR_BD[p["bd"]]] for p in campana["proyectos"]},
     } for r in FALLBACK_ROSTER]
 
