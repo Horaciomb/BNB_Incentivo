@@ -159,28 +159,35 @@ def _buscar_campana(campana_id: str) -> Dict[str, Any]:
 # cualquier campaña. La respuesta lo marca con es_respaldo=true para que la UI
 # avise en vez de mostrar números inventados como si fueran reales.
 FALLBACK_ROSTER = [
-    {"nombre": "DANIELA ANDREA VARGAS ARÉVALO", "ciudad": "La Paz", "supervisor": "MILENKA ADRIANA ORDOÑEZ NUÑEZ", "cuentas_bnb": 62, "cuentas_bille": 12},
-    {"nombre": "DIEGO ARMANDO COLQUE COLQUE", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 45, "cuentas_bille": 8},
-    {"nombre": "GABRIELA QUIÑONES YPORRE", "ciudad": "Santa Cruz", "supervisor": "DELIA JORDAN FACUSSE", "cuentas_bnb": 65, "cuentas_bille": 72},
-    {"nombre": "JHENIFER LUCERO SERRUDO LLAMPA", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 68, "cuentas_bille": 70},
-    {"nombre": "JHOJAN JAIRO CALLAHUARA CHOQUE", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 38, "cuentas_bille": 5},
-    {"nombre": "LUIS ANGEL SIHUAIROS CANO", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 58, "cuentas_bille": 61},
-    {"nombre": "MARCO ANTONIO ESCOBAR ALVAREZ", "ciudad": "Santa Cruz", "supervisor": "BEATRIZ OVIEDO OVIEDO", "cuentas_bnb": 22, "cuentas_bille": 4},
-    {"nombre": "PABLO SANTIAGO PEREZ NAVA", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 71, "cuentas_bille": 14},
-    {"nombre": "RENE NUÑEZ SOLIS", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 52, "cuentas_bille": 71},
-    {"nombre": "REYNA IVONNE CALLE NINA", "ciudad": "La Paz", "supervisor": "CLAUDIA SHASKIA CALLE NINA", "cuentas_bnb": 60, "cuentas_bille": 35},
-    {"nombre": "BRUNO ROCHA PEREIRA", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 10, "cuentas_bille": 58},
-    {"nombre": "CAMILA ANDREA LOZA MERINO", "ciudad": "La Paz", "supervisor": "GERCY EVER ERGUETA KIPPES", "cuentas_bnb": 15, "cuentas_bille": 42},
-    {"nombre": "DANIELA ASCARRAGA DOMINGUEZ", "ciudad": "Santa Cruz", "supervisor": "JOSE GUTIERREZ PEDRAZA", "cuentas_bnb": 20, "cuentas_bille": 72},
-    {"nombre": "JOHANNA CASSANDRA CHAVEZ VALERIANO", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 8, "cuentas_bille": 30},
-    {"nombre": "JOSÉ OLAF ROJAS CONDARCO", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 14, "cuentas_bille": 56},
-    {"nombre": "RUBEN ANTONIO HINOJOSA TUPA", "ciudad": "La Paz", "supervisor": "CLAUDIA SHASKIA CALLE NINA", "cuentas_bnb": 5, "cuentas_bille": 28},
-    {"nombre": "SARAI VANESA TERAN GONZALES", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 19, "cuentas_bille": 59}
+    {"nombre": "DANIELA ANDREA VARGAS ARÉVALO", "ci": "88888801", "ciudad": "La Paz", "supervisor": "MILENKA ADRIANA ORDOÑEZ NUÑEZ", "cuentas_bnb": 62, "cuentas_bille": 12},
+    {"nombre": "DIEGO ARMANDO COLQUE COLQUE", "ci": "88888802", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 45, "cuentas_bille": 8},
+    {"nombre": "GABRIELA QUIÑONES YPORRE", "ci": "88888803", "ciudad": "Santa Cruz", "supervisor": "DELIA JORDAN FACUSSE", "cuentas_bnb": 65, "cuentas_bille": 72},
+    {"nombre": "JHENIFER LUCERO SERRUDO LLAMPA", "ci": "88888804", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 68, "cuentas_bille": 70},
+    {"nombre": "JHOJAN JAIRO CALLAHUARA CHOQUE", "ci": "88888805", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 38, "cuentas_bille": 5},
+    {"nombre": "LUIS ANGEL SIHUAIROS CANO", "ci": "88888806", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 58, "cuentas_bille": 61},
+    {"nombre": "MARCO ANTONIO ESCOBAR ALVAREZ", "ci": "88888807", "ciudad": "Santa Cruz", "supervisor": "BEATRIZ OVIEDO OVIEDO", "cuentas_bnb": 22, "cuentas_bille": 4},
+    {"nombre": "PABLO SANTIAGO PEREZ NAVA", "ci": "88888808", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 71, "cuentas_bille": 14},
+    {"nombre": "RENE NUÑEZ SOLIS", "ci": "88888809", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 52, "cuentas_bille": 71},
+    {"nombre": "REYNA IVONNE CALLE NINA", "ci": "88888810", "ciudad": "La Paz", "supervisor": "CLAUDIA SHASKIA CALLE NINA", "cuentas_bnb": 60, "cuentas_bille": 35},
+    {"nombre": "BRUNO ROCHA PEREIRA", "ci": "88888811", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 10, "cuentas_bille": 58},
+    {"nombre": "CAMILA ANDREA LOZA MERINO", "ci": "88888812", "ciudad": "La Paz", "supervisor": "GERCY EVER ERGUETA KIPPES", "cuentas_bnb": 15, "cuentas_bille": 42},
+    {"nombre": "DANIELA ASCARRAGA DOMINGUEZ", "ci": "88888813", "ciudad": "Santa Cruz", "supervisor": "JOSE GUTIERREZ PEDRAZA", "cuentas_bnb": 20, "cuentas_bille": 72},
+    {"nombre": "JOHANNA CASSANDRA CHAVEZ VALERIANO", "ci": "88888814", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 8, "cuentas_bille": 30},
+    {"nombre": "JOSÉ OLAF ROJAS CONDARCO", "ci": "88888815", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 14, "cuentas_bille": 56},
+    {"nombre": "RUBEN ANTONIO HINOJOSA TUPA", "ci": "88888816", "ciudad": "La Paz", "supervisor": "CLAUDIA SHASKIA CALLE NINA", "cuentas_bnb": 5, "cuentas_bille": 28},
+    {"nombre": "SARAI VANESA TERAN GONZALES", "ci": "88888817", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 19, "cuentas_bille": 59}
 ]
 
 # Clave de FALLBACK_ROSTER por base de datos, para poder armar el respaldo de
 # cualquier campaña a partir de sus proyectos.
 _FALLBACK_KEY_POR_BD = {"bnb_bd": "cuentas_bnb", "bille_bd": "cuentas_bille"}
+
+# CI ficticio de cada supervisor del roster demo, para que el reporte de
+# contabilidad tenga la misma forma que con datos reales.
+_FALLBACK_CI_SUPERVISOR = {
+    sup: "888889%02d" % (i + 1)
+    for i, sup in enumerate(sorted({r["supervisor"] for r in FALLBACK_ROSTER}))
+}
 
 
 # ---------------------------------------------------------------------------
@@ -212,7 +219,11 @@ def _armar_afiliadores(raw_list: List[Dict[str, Any]], campana: Dict[str, Any]) 
         cuentas = {p["key"]: int(crudas.get(p["key"], 0)) for p in proyectos}
         res.append({
             "nombre": item.get("nombre", ""),
+            # CI para el reporte de contabilidad (decision explicita del usuario:
+            # viaja en la respuesta publica, ver CLAUDE.md).
+            "ci": item.get("ci", ""),
             "supervisor": item.get("supervisor", ""),
+            "supervisor_ci": item.get("supervisor_ci", ""),
             "ciudad": item.get("ciudad", ""),
             "cuentas": cuentas,
             **_evaluar_afiliador(cuentas, campana)
@@ -237,9 +248,13 @@ def _armar_supervisores(afiliadores: List[Dict[str, Any]], campana: Dict[str, An
         if not sup or sup == "BEX":
             continue
         eq = equipos.setdefault(sup, {
-            "supervisor": sup, "ciudades": set(),
+            "supervisor": sup, "ci": "", "ciudades": set(),
             "afiliadores_total": 0, "afiliadores_con_bono": 0
         })
+        # El CI del supervisor llega repetido en cada miembro del equipo; basta
+        # con el primero no vacio para poder pagarle su propio bono.
+        if not eq["ci"] and a.get("supervisor_ci"):
+            eq["ci"] = a["supervisor_ci"]
         eq["afiliadores_total"] += 1
         if a["premio_bs"] > 0:
             eq["afiliadores_con_bono"] += 1
@@ -272,11 +287,13 @@ def _obtener_empleados_activos_bnb() -> List[Dict[str, Any]]:
             cur.execute("""
                 SELECT
                     TRIM(CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno)) AS nombre,
+                    COALESCE(TRIM(p.ci), '') AS ci,
                     COALESCE(c.nombre_ciudad, 'La Paz') AS ciudad,
                     COALESCE(
                         NULLIF(TRIM(CONCAT_WS(' ', sup.nombres, sup.apellido_paterno, sup.apellido_materno)), ''),
                         'BEX'
                     ) AS supervisor,
+                    COALESCE(TRIM(sup.ci), '') AS supervisor_ci,
                     TRIM(eu.telefono) AS telefono
                 FROM empleado_unidad eu
                 JOIN persona p ON p.id_persona = eu.id_persona
@@ -343,8 +360,10 @@ def _roster_desde_bd(campana: Dict[str, Any]) -> List[Dict[str, Any]]:
         vistos.add(tel)
         raw_data.append({
             "nombre": e["nombre"],
+            "ci": e["ci"],
             "ciudad": e["ciudad"],
             "supervisor": e["supervisor"],
+            "supervisor_ci": e["supervisor_ci"],
             "cuentas": {p["key"]: mapas[p["bd"]].get(tel, 0) for p in campana["proyectos"]},
         })
     return raw_data
@@ -353,8 +372,10 @@ def _roster_desde_bd(campana: Dict[str, Any]) -> List[Dict[str, Any]]:
 def _roster_de_respaldo(campana: Dict[str, Any]) -> List[Dict[str, Any]]:
     return [{
         "nombre": r["nombre"],
+        "ci": r["ci"],
         "ciudad": r["ciudad"],
         "supervisor": r["supervisor"],
+        "supervisor_ci": _FALLBACK_CI_SUPERVISOR.get(r["supervisor"], ""),
         "cuentas": {p["key"]: r[_FALLBACK_KEY_POR_BD[p["bd"]]] for p in campana["proyectos"]},
     } for r in FALLBACK_ROSTER]
 
