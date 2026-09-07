@@ -16,3 +16,7 @@ $Servidor = "Administrator@10.0.0.2"
 $Servicio = "web_bnb_convocatoria"
 $AppDir   = "C:/Proyectos/BNB/web/convocatoria"
 $PyVenv   = "C:\uv-envs\bnb\Scripts\python.exe"
+
+# URL publica, la que atraviesa Caddy. La usa verificar_produccion.ps1; ojo que
+# esta ruta no sigue la convencion /<unidad>/<app>/ del resto del servidor.
+$UrlPublica = "https://srv.beneficioslatam.com/convocatoria/bnb"
