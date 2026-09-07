@@ -20,11 +20,23 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# CORS restringido a los origenes que existen de verdad. En produccion Caddy sirve
+# el frontend y la API bajo el MISMO origen (/convocatoria/bnb/), y en desarrollo Vite
+# hace de proxy hacia :8000, asi que el navegador no cruza origenes en ninguno de los
+# dos casos: la lista solo cubre a quien apunte al backend directo desde el dev server.
+# Antes era ["*"], que ademas es incompatible con allow_credentials segun la spec.
+ORIGENES_PERMITIDOS = [
+    "https://srv.beneficioslatam.com",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=ORIGENES_PERMITIDOS,
+    # No hay cookies ni cabeceras de autenticacion: la API es de solo lectura.
+    allow_credentials=False,
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
