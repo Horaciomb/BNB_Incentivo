@@ -1,3 +1,11 @@
+	# NOTA (07-sep-2026): esto es SOLO el bloque de esta app, no el Caddyfile entero.
+	# Antes de llegar aqui el sitio aplica dos matchers globales, anadidos el 05-sep:
+	#   @sensibles   -> 404 en *.conf *.env *.ps1 *.pem *.key *pgpass* *.bat *.cmd
+	#                   *.pyc *.pyd *.exe *.dll  (sufijo, en TODAS las rutas del sitio)
+	#   @no_publicos -> 404 en /cirpob/* /extraer_negocios/* /api/* /frontend/* /mapas/*
+	#                   (prefijos DE RAIZ: no alcanzan a /convocatoria/bnb/api/*, verificado)
+	# Reponer este bloque no repone esas reglas, ni al reves.
+
 	# -----------------------------------------
 	# BNB - Convocatoria Incentivos Cierre de Agosto (FastAPI + React)
 	# -----------------------------------------

@@ -2,9 +2,10 @@
 # 28-ago-2026 (se edito el Caddyfile desde una copia vieja, sin backup previo).
 # Se ejecuta EN EL SERVIDOR.
 #
-# El texto del bloque se toma de Caddyfile.bak_rumbo_geoloc (27-ago), NO de
-# caddy_snippet_convocatoria.txt: el snippet del repo trae el strip_prefix viejo
-# (/convocatoria/bnb/api) que ya se corrigio el 25-ago con fix_caddy_strip_prefix.ps1.
+# El texto del bloque se toma de Caddyfile.bak_rumbo_geoloc (27-ago) porque es la copia
+# fiel de lo que quedo corriendo en produccion, NO porque el snippet del repo este mal:
+# caddy_snippet_convocatoria.txt ya trae el strip_prefix corregido (/convocatoria/bnb;
+# se arreglo el 25-ago con fix_caddy_strip_prefix.ps1 y se alineo en el repo el 31-ago).
 $ErrorActionPreference = "Stop"
 
 $Caddyfile = "C:\Caddy\Caddyfile"

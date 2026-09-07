@@ -1,3 +1,8 @@
+# OBSOLETO - NO USAR. El ancla que busca ('# Ocupacion del VPS por unidad') desaparecio
+# del Caddyfile en el incidente del 28-ago-2026 y no volvio, asi que este script siempre
+# sale por el ERROR de 'no se encontro el ancla'. Se conserva por historia (CLAUDE.md lo
+# cita). Para reponer el bloque: deploy\reponer_caddy_convocatoria.ps1.
+#
 # Inserta el snippet de /convocatoria/bnb/ en C:\Caddy\Caddyfile, con respaldo previo.
 # Se ejecuta EN EL SERVIDOR. Preserva encoding UTF-8 con BOM (el archivo original lo tiene).
 # Ubica el punto de insercion por NUMERO DE LINEA (una linea antes del ancla), no por texto
