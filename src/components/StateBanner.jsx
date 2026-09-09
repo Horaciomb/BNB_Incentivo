@@ -1,5 +1,5 @@
 import React from 'react'
-import { AlertCircle, Loader2, FlaskConical } from 'lucide-react'
+import { AlertCircle, Loader2, FlaskConical, UserX } from 'lucide-react'
 
 export function CargandoPanel({ texto = 'Cargando campaña...' }) {
   return (
@@ -35,6 +35,43 @@ export function RespaldoBanner() {
       <p className="text-[10px] font-medium text-amber-900 leading-normal">
         <strong className="font-semibold">Datos de demostración.</strong>{' '}
         No hay conexión con la base de datos, las cifras mostradas no son producción real.
+      </p>
+    </div>
+  )
+}
+
+/** Producción de celulares que no están en la planilla de Personal: esa gente
+ *  afilió pero no aparece en el tablero, así que su bono no se le paga a nadie.
+ *  Antes de este aviso el caso era invisible — se perdieron dos bonos así. */
+export function SinRosterBanner({ sinRoster, meta }) {
+  if (!sinRoster?.length) return null
+
+  const totales = sinRoster.map(x => Math.max(...Object.values(x.cuentas)))
+  const afiliaciones = sinRoster.reduce(
+    (s, x) => s + Object.values(x.cuentas).reduce((a, b) => a + b, 0), 0,
+  )
+  // Solo se llama "posible bono" a quien llega a la meta del proyecto visible;
+  // el resto es producción huérfana, molesta pero sin plata en juego.
+  const conMeta = meta ? totales.filter(n => n >= meta).length : 0
+
+  return (
+    <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-xl p-3">
+      <UserX size={14} strokeWidth={2} className="shrink-0 mt-0.5 text-orange-700" />
+      <p className="text-[10px] font-medium text-orange-900 leading-normal">
+        <strong className="font-semibold">
+          {sinRoster.length} {sinRoster.length === 1 ? 'celular afilió' : 'celulares afiliaron'} sin estar en la planilla
+        </strong>{' '}
+        ({afiliaciones} {afiliaciones === 1 ? 'afiliación' : 'afiliaciones'} que no se ven en el tablero).
+        {conMeta > 0 && (
+          <>
+            {' '}
+            <strong className="font-semibold">{conMeta} {conMeta === 1 ? 'llegaría' : 'llegarían'} a la meta</strong>
+            {' '}— hay bono sin pagar.
+          </>
+        )}{' '}
+        Cargar a esa gente en la planilla de Personal para que entre al cálculo:{' '}
+        <span className="font-mono">{sinRoster.slice(0, 6).map(x => x.celular).join(', ')}</span>
+        {sinRoster.length > 6 && ` y ${sinRoster.length - 6} más`}.
       </p>
     </div>
   )

@@ -9,9 +9,9 @@ Write-Host ">> Deploy backend - Incentivos Cierre Agosto (BNB)" -ForegroundColor
 
 # Guarda de arbol limpio, mismo motivo que rrhh-app/deploy/deploy-backend.ps1:
 # scp copia el WORKING TREE, no un commit.
-$sucio = git -C $root status --porcelain -- server.py requirements.txt campanas.json
+$sucio = git -C $root status --porcelain -- server.py requirements.txt campanas.json personal
 if ($sucio -and -not $PermitirArbolSucio) {
-    Write-Host "ERROR: hay cambios sin commitear en server.py, requirements.txt o campanas.json." -ForegroundColor Red
+    Write-Host "ERROR: hay cambios sin commitear en server.py, requirements.txt, campanas.json o personal." -ForegroundColor Red
     Write-Host "       scp copia el working tree, no un commit: esto se iria a PRODUCCION." -ForegroundColor Red
     Write-Host ""
     $sucio | ForEach-Object { Write-Host "       $_" -ForegroundColor Yellow }
@@ -32,6 +32,17 @@ Write-Host "-> Subiendo codigo del backend (server.py -> api/main.py)..."
 ssh $Servidor "if not exist $AppDir\api mkdir $AppDir\api"
 scp "$root\server.py" "${Servidor}:/$AppDir/api/main.py"
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: scp server.py fallo" -ForegroundColor Red; exit 1 }
+
+# Paquete del roster (copia de comun/planilla_personal.py del repo procesos).
+# Los archivos se listan uno por uno a proposito, en vez de `scp -r personal`:
+# asi no se sube __pycache__, y sobre todo no se sube el cache dat\ con la
+# nomina completa si alguna vez cae dentro de la carpeta.
+Write-Host "-> Subiendo personal\ (lectura de la planilla de Personal)..."
+ssh $Servidor "if not exist $AppDir\api\personal mkdir $AppDir\api\personal"
+foreach ($f in @("__init__.py", "config.py", "planilla_personal.py")) {
+    scp "$root\personal\$f" "${Servidor}:/$AppDir/api/personal/$f"
+    if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: scp personal\$f fallo" -ForegroundColor Red; exit 1 }
+}
 
 scp "$root\requirements.txt" "${Servidor}:/$AppDir/api/requirements.txt"
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: scp requirements.txt fallo" -ForegroundColor Red; exit 1 }

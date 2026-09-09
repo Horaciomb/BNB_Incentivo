@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
-from psycopg2.extras import RealDictCursor
+
+from personal.planilla_personal import cargar_demografia, cargar_roster_contratos
 
 # Carga .env si existe (patron de las demas apps BNB en el servidor: Caddy
 # bloquea servir .env como estatico globalmente). Sin archivo, no hace nada
@@ -16,8 +17,9 @@ load_dotenv()
 
 app = FastAPI(
     title="API Incentivos BEX - BNB / Bille",
-    description="Servicio Backend en FastAPI para el Panel de Incentivos multi-campaña (rrhh_bd + bnb_bd + bille_bd)",
-    version="2.0.0"
+    description="Servicio Backend en FastAPI para el Panel de Incentivos multi-campaña "
+    "(roster: planilla de Personal; producción: bnb_bd + bille_bd)",
+    version="2.0.0",
 )
 
 # CORS restringido a los origenes que existen de verdad. En produccion Caddy sirve
@@ -40,12 +42,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuración de Base de Datos PostgreSQL — rrhh_bd (datos de empleados)
+# Host/puerto del PostgreSQL de producción. El roster de personal YA NO sale de
+# rrhh_bd — viene de la planilla publicada, ver personal/__init__.py — así que
+# esta app dejó de necesitar el rol bex_app y la variable DB_PASSWORD. Los
+# nombres DB_HOST/DB_PORT se conservan porque el .env del servidor ya los tiene
+# y las conexiones de producción los usan como valor por defecto.
 DB_HOST = os.getenv("DB_HOST", "10.0.0.2")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
-DB_NAME = os.getenv("DB_NAME", "rrhh_bd")
-DB_USER = os.getenv("DB_USER", "bex_app")
-DB_PASS = os.getenv("DB_PASSWORD", "")
 
 # Conexión de solo lectura a bnb_bd / bille_bd — producción real de cada campaña.
 # Requiere el rol bex_ingeniero (bex_app no tiene acceso a estas bases). Mismo patrón
@@ -150,8 +153,7 @@ def _cargar_campanas() -> List[Dict[str, Any]]:
 def _campanas_visibles() -> List[Dict[str, Any]]:
     """Activas, futuras, y terminadas hace menos de MESES_HISTORICO meses."""
     limite = date.today() - timedelta(days=MESES_HISTORICO * 30)
-    return [c for c in _cargar_campanas()
-            if c["estado"] != "pasada" or date.fromisoformat(c["hasta"]) >= limite]
+    return [c for c in _cargar_campanas() if c["estado"] != "pasada" or date.fromisoformat(c["hasta"]) >= limite]
 
 
 def _buscar_campana(campana_id: str) -> Dict[str, Any]:
@@ -159,8 +161,7 @@ def _buscar_campana(campana_id: str) -> Dict[str, Any]:
         if c["id"] == campana_id:
             return c
     raise HTTPException(
-        status_code=404,
-        detail=f"Campaña no encontrada o fuera del histórico de {MESES_HISTORICO} meses: {campana_id}"
+        status_code=404, detail=f"Campaña no encontrada o fuera del histórico de {MESES_HISTORICO} meses: {campana_id}"
     )
 
 
@@ -171,23 +172,146 @@ def _buscar_campana(campana_id: str) -> Dict[str, Any]:
 # cualquier campaña. La respuesta lo marca con es_respaldo=true para que la UI
 # avise en vez de mostrar números inventados como si fueran reales.
 FALLBACK_ROSTER = [
-    {"nombre": "DANIELA ANDREA VARGAS ARÉVALO", "ci": "88888801", "ciudad": "La Paz", "supervisor": "MILENKA ADRIANA ORDOÑEZ NUÑEZ", "cuentas_bnb": 62, "cuentas_bille": 12},
-    {"nombre": "DIEGO ARMANDO COLQUE COLQUE", "ci": "88888802", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 45, "cuentas_bille": 8},
-    {"nombre": "GABRIELA QUIÑONES YPORRE", "ci": "88888803", "ciudad": "Santa Cruz", "supervisor": "DELIA JORDAN FACUSSE", "cuentas_bnb": 65, "cuentas_bille": 72},
-    {"nombre": "JHENIFER LUCERO SERRUDO LLAMPA", "ci": "88888804", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 68, "cuentas_bille": 70},
-    {"nombre": "JHOJAN JAIRO CALLAHUARA CHOQUE", "ci": "88888805", "ciudad": "Cochabamba", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 38, "cuentas_bille": 5},
-    {"nombre": "LUIS ANGEL SIHUAIROS CANO", "ci": "88888806", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 58, "cuentas_bille": 61},
-    {"nombre": "MARCO ANTONIO ESCOBAR ALVAREZ", "ci": "88888807", "ciudad": "Santa Cruz", "supervisor": "BEATRIZ OVIEDO OVIEDO", "cuentas_bnb": 22, "cuentas_bille": 4},
-    {"nombre": "PABLO SANTIAGO PEREZ NAVA", "ci": "88888808", "ciudad": "Cochabamba", "activo": False, "fecha_baja": "2026-09-02", "supervisor": "PAMELA FANNY CALANI LAURA", "cuentas_bnb": 71, "cuentas_bille": 14},
-    {"nombre": "RENE NUÑEZ SOLIS", "ci": "88888809", "ciudad": "Sucre", "supervisor": "JENNY CRISTINA ECHALAR MONTALVO", "cuentas_bnb": 52, "cuentas_bille": 71},
-    {"nombre": "REYNA IVONNE CALLE NINA", "ci": "88888810", "ciudad": "La Paz", "supervisor": "CLAUDIA SHASKIA CALLE NINA", "cuentas_bnb": 60, "cuentas_bille": 35},
-    {"nombre": "BRUNO ROCHA PEREIRA", "ci": "88888811", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 10, "cuentas_bille": 58},
-    {"nombre": "CAMILA ANDREA LOZA MERINO", "ci": "88888812", "ciudad": "La Paz", "supervisor": "GERCY EVER ERGUETA KIPPES", "cuentas_bnb": 15, "cuentas_bille": 42},
-    {"nombre": "DANIELA ASCARRAGA DOMINGUEZ", "ci": "88888813", "ciudad": "Santa Cruz", "activo": False, "fecha_baja": "2026-08-28", "supervisor": "JOSE GUTIERREZ PEDRAZA", "cuentas_bnb": 20, "cuentas_bille": 72},
-    {"nombre": "JOHANNA CASSANDRA CHAVEZ VALERIANO", "ci": "88888814", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 8, "cuentas_bille": 30},
-    {"nombre": "JOSÉ OLAF ROJAS CONDARCO", "ci": "88888815", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 14, "cuentas_bille": 56},
-    {"nombre": "RUBEN ANTONIO HINOJOSA TUPA", "ci": "88888816", "ciudad": "La Paz", "supervisor": "CLAUDIA SHASKIA CALLE NINA", "cuentas_bnb": 5, "cuentas_bille": 28},
-    {"nombre": "SARAI VANESA TERAN GONZALES", "ci": "88888817", "ciudad": "Cochabamba", "supervisor": "HASIRA DANIELA OSINAGA CHOQUE", "cuentas_bnb": 19, "cuentas_bille": 59}
+    {
+        "nombre": "DANIELA ANDREA VARGAS ARÉVALO",
+        "ci": "88888801",
+        "ciudad": "La Paz",
+        "supervisor": "MILENKA ADRIANA ORDOÑEZ NUÑEZ",
+        "cuentas_bnb": 62,
+        "cuentas_bille": 12,
+    },
+    {
+        "nombre": "DIEGO ARMANDO COLQUE COLQUE",
+        "ci": "88888802",
+        "ciudad": "Cochabamba",
+        "supervisor": "PAMELA FANNY CALANI LAURA",
+        "cuentas_bnb": 45,
+        "cuentas_bille": 8,
+    },
+    {
+        "nombre": "GABRIELA QUIÑONES YPORRE",
+        "ci": "88888803",
+        "ciudad": "Santa Cruz",
+        "supervisor": "DELIA JORDAN FACUSSE",
+        "cuentas_bnb": 65,
+        "cuentas_bille": 72,
+    },
+    {
+        "nombre": "JHENIFER LUCERO SERRUDO LLAMPA",
+        "ci": "88888804",
+        "ciudad": "Sucre",
+        "supervisor": "JENNY CRISTINA ECHALAR MONTALVO",
+        "cuentas_bnb": 68,
+        "cuentas_bille": 70,
+    },
+    {
+        "nombre": "JHOJAN JAIRO CALLAHUARA CHOQUE",
+        "ci": "88888805",
+        "ciudad": "Cochabamba",
+        "supervisor": "PAMELA FANNY CALANI LAURA",
+        "cuentas_bnb": 38,
+        "cuentas_bille": 5,
+    },
+    {
+        "nombre": "LUIS ANGEL SIHUAIROS CANO",
+        "ci": "88888806",
+        "ciudad": "Sucre",
+        "supervisor": "JENNY CRISTINA ECHALAR MONTALVO",
+        "cuentas_bnb": 58,
+        "cuentas_bille": 61,
+    },
+    {
+        "nombre": "MARCO ANTONIO ESCOBAR ALVAREZ",
+        "ci": "88888807",
+        "ciudad": "Santa Cruz",
+        "supervisor": "BEATRIZ OVIEDO OVIEDO",
+        "cuentas_bnb": 22,
+        "cuentas_bille": 4,
+    },
+    {
+        "nombre": "PABLO SANTIAGO PEREZ NAVA",
+        "ci": "88888808",
+        "ciudad": "Cochabamba",
+        "activo": False,
+        "fecha_baja": "2026-09-02",
+        "supervisor": "PAMELA FANNY CALANI LAURA",
+        "cuentas_bnb": 71,
+        "cuentas_bille": 14,
+    },
+    {
+        "nombre": "RENE NUÑEZ SOLIS",
+        "ci": "88888809",
+        "ciudad": "Sucre",
+        "supervisor": "JENNY CRISTINA ECHALAR MONTALVO",
+        "cuentas_bnb": 52,
+        "cuentas_bille": 71,
+    },
+    {
+        "nombre": "REYNA IVONNE CALLE NINA",
+        "ci": "88888810",
+        "ciudad": "La Paz",
+        "supervisor": "CLAUDIA SHASKIA CALLE NINA",
+        "cuentas_bnb": 60,
+        "cuentas_bille": 35,
+    },
+    {
+        "nombre": "BRUNO ROCHA PEREIRA",
+        "ci": "88888811",
+        "ciudad": "Cochabamba",
+        "supervisor": "HASIRA DANIELA OSINAGA CHOQUE",
+        "cuentas_bnb": 10,
+        "cuentas_bille": 58,
+    },
+    {
+        "nombre": "CAMILA ANDREA LOZA MERINO",
+        "ci": "88888812",
+        "ciudad": "La Paz",
+        "supervisor": "GERCY EVER ERGUETA KIPPES",
+        "cuentas_bnb": 15,
+        "cuentas_bille": 42,
+    },
+    {
+        "nombre": "DANIELA ASCARRAGA DOMINGUEZ",
+        "ci": "88888813",
+        "ciudad": "Santa Cruz",
+        "activo": False,
+        "fecha_baja": "2026-08-28",
+        "supervisor": "JOSE GUTIERREZ PEDRAZA",
+        "cuentas_bnb": 20,
+        "cuentas_bille": 72,
+    },
+    {
+        "nombre": "JOHANNA CASSANDRA CHAVEZ VALERIANO",
+        "ci": "88888814",
+        "ciudad": "Cochabamba",
+        "supervisor": "HASIRA DANIELA OSINAGA CHOQUE",
+        "cuentas_bnb": 8,
+        "cuentas_bille": 30,
+    },
+    {
+        "nombre": "JOSÉ OLAF ROJAS CONDARCO",
+        "ci": "88888815",
+        "ciudad": "Cochabamba",
+        "supervisor": "HASIRA DANIELA OSINAGA CHOQUE",
+        "cuentas_bnb": 14,
+        "cuentas_bille": 56,
+    },
+    {
+        "nombre": "RUBEN ANTONIO HINOJOSA TUPA",
+        "ci": "88888816",
+        "ciudad": "La Paz",
+        "supervisor": "CLAUDIA SHASKIA CALLE NINA",
+        "cuentas_bnb": 5,
+        "cuentas_bille": 28,
+    },
+    {
+        "nombre": "SARAI VANESA TERAN GONZALES",
+        "ci": "88888817",
+        "ciudad": "Cochabamba",
+        "supervisor": "HASIRA DANIELA OSINAGA CHOQUE",
+        "cuentas_bnb": 19,
+        "cuentas_bille": 59,
+    },
 ]
 
 # Clave de FALLBACK_ROSTER por base de datos, para poder armar el respaldo de
@@ -197,8 +321,7 @@ _FALLBACK_KEY_POR_BD = {"bnb_bd": "cuentas_bnb", "bille_bd": "cuentas_bille"}
 # CI ficticio de cada supervisor del roster demo, para que el reporte de
 # contabilidad tenga la misma forma que con datos reales.
 _FALLBACK_CI_SUPERVISOR = {
-    sup: "888889%02d" % (i + 1)
-    for i, sup in enumerate(sorted({r["supervisor"] for r in FALLBACK_ROSTER}))
+    sup: "888889%02d" % (i + 1) for i, sup in enumerate(sorted({r["supervisor"] for r in FALLBACK_ROSTER}))
 }
 
 
@@ -229,22 +352,24 @@ def _armar_afiliadores(raw_list: List[Dict[str, Any]], campana: Dict[str, Any]) 
     for item in raw_list:
         crudas = item.get("cuentas", {})
         cuentas = {p["key"]: int(crudas.get(p["key"], 0)) for p in proyectos}
-        res.append({
-            "nombre": item.get("nombre", ""),
-            # CI para el reporte de contabilidad (decision explicita del usuario:
-            # viaja en la respuesta publica, ver CLAUDE.md).
-            "ci": item.get("ci", ""),
-            "supervisor": item.get("supervisor", ""),
-            "supervisor_ci": item.get("supervisor_ci", ""),
-            "supervisor_activo": item.get("supervisor_activo"),
-            "ciudad": item.get("ciudad", ""),
-            # Estado en personal. Un inactivo que aparece aca produjo dentro de
-            # la campana: gano el bono aunque ya no este en la empresa.
-            "activo": item.get("activo", True),
-            "fecha_baja": item.get("fecha_baja"),
-            "cuentas": cuentas,
-            **_evaluar_afiliador(cuentas, campana)
-        })
+        res.append(
+            {
+                "nombre": item.get("nombre", ""),
+                # CI para el reporte de contabilidad (decision explicita del usuario:
+                # viaja en la respuesta publica, ver CLAUDE.md).
+                "ci": item.get("ci", ""),
+                "supervisor": item.get("supervisor", ""),
+                "supervisor_ci": item.get("supervisor_ci", ""),
+                "supervisor_activo": item.get("supervisor_activo"),
+                "ciudad": item.get("ciudad", ""),
+                # Estado en personal. Un inactivo que aparece aca produjo dentro de
+                # la campana: gano el bono aunque ya no este en la empresa.
+                "activo": item.get("activo", True),
+                "fecha_baja": item.get("fecha_baja"),
+                "cuentas": cuentas,
+                **_evaluar_afiliador(cuentas, campana),
+            }
+        )
     return res
 
 
@@ -264,10 +389,17 @@ def _armar_supervisores(afiliadores: List[Dict[str, Any]], campana: Dict[str, An
         # tiene supervisor asignado: no es una persona, no cobra bono.
         if not sup or sup == "BEX":
             continue
-        eq = equipos.setdefault(sup, {
-            "supervisor": sup, "ci": "", "activo": None, "ciudades": set(),
-            "afiliadores_total": 0, "afiliadores_con_bono": 0
-        })
+        eq = equipos.setdefault(
+            sup,
+            {
+                "supervisor": sup,
+                "ci": "",
+                "activo": None,
+                "ciudades": set(),
+                "afiliadores_total": 0,
+                "afiliadores_con_bono": 0,
+            },
+        )
         # El CI y el estado del supervisor llegan repetidos en cada miembro del
         # equipo; basta el primero no vacio para poder pagarle su propio bono.
         if not eq["ci"] and a.get("supervisor_ci"):
@@ -293,50 +425,102 @@ def _armar_supervisores(afiliadores: List[Dict[str, Any]], campana: Dict[str, An
 # ---------------------------------------------------------------------------
 # Acceso a datos
 # ---------------------------------------------------------------------------
-def _obtener_empleados_activos_bnb() -> List[Dict[str, Any]]:
-    """Empleados activos de la unidad BNB (que incluye la campaña BILLE) desde rrhh_bd,
-    con su teléfono — la llave de cruce contra bnb_bd/bille_bd.fact_afiliaciones.
-    El roster es el mismo para todas las campañas."""
-    conn = psycopg2.connect(
-        host=DB_HOST, port=DB_PORT, dbname=DB_NAME,
-        user=DB_USER, password=DB_PASS, connect_timeout=3
-    )
+def _fecha_iso(valor: Any) -> Any:
+    """Fecha de la planilla -> 'AAAA-MM-DD' o None. Va por `hasattr` y no por un
+    `if valor` porque el NaT de pandas no es un falsy fiable."""
+    if valor is None or not hasattr(valor, "isoformat"):
+        return None
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
-                SELECT
-                    TRIM(CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno)) AS nombre,
-                    COALESCE(TRIM(p.ci), '') AS ci,
-                    COALESCE(c.nombre_ciudad, 'La Paz') AS ciudad,
-                    COALESCE(
-                        NULLIF(TRIM(CONCAT_WS(' ', sup.nombres, sup.apellido_paterno, sup.apellido_materno)), ''),
-                        'BEX'
-                    ) AS supervisor,
-                    COALESCE(TRIM(sup.ci), '') AS supervisor_ci,
-                    eu.activo,
-                    eu.fecha_baja,
-                    -- Estado del supervisor sin multiplicar filas: una persona
-                    -- puede tener varios periodos en la unidad, basta con que
-                    -- alguno siga abierto. Subconsulta, nunca un JOIN.
-                    (SELECT bool_or(x.activo)
-                       FROM empleado_unidad x
-                      WHERE x.id_persona = eu.id_persona_supervisor) AS supervisor_activo,
-                    TRIM(eu.telefono) AS telefono
-                FROM empleado_unidad eu
-                JOIN persona p ON p.id_persona = eu.id_persona
-                JOIN unidad_negocio un ON un.id_unidad_negocio = eu.id_unidad_negocio
-                LEFT JOIN ciudad c ON c.id_ciudad = eu.id_ciudad
-                LEFT JOIN persona sup ON sup.id_persona = eu.id_persona_supervisor
-                WHERE un.codigo = 'BNB'
-                  AND eu.telefono IS NOT NULL AND TRIM(eu.telefono) <> ''
-                -- Los inactivos entran aca y se filtran despues por produccion.
-                -- El orden importa: ante un celular repetido gana la fila activa,
-                -- y entre bajas la mas reciente.
-                ORDER BY eu.activo DESC, eu.fecha_baja DESC NULLS LAST
-            """)
-            return [dict(r) for r in cur.fetchall()]
-    finally:
-        conn.close()
+        return valor.isoformat()[:10]
+    except Exception:
+        return None
+
+
+def _titulo(texto: Any) -> str:
+    """La planilla viene en MAYÚSCULAS; la UI siempre mostró nombres y ciudades
+    capitalizados. Se normaliza acá y no en el frontend para que el reporte de
+    contabilidad salga igual que antes."""
+    return str(texto or "").strip().title()
+
+
+def _leer_roster_planilla() -> List[Dict[str, Any]]:
+    """Roster de la unidad BNB (que incluye la campaña BILLE) leído de la
+    planilla de Personal, con su celular — la llave de cruce contra
+    bnb_bd/bille_bd.fact_afiliaciones. El roster es el mismo para todas las
+    campañas.
+
+    Antes salía de rrhh_bd.empleado_unidad y perdía a todo el que RRHH no
+    hubiera cargado ahí; ver personal/__init__.py para el porqué del cambio.
+
+    `cargar_roster_contratos` ya devuelve una fila por persona resolviendo los
+    contratos múltiples, así que acá no se vuelve a deduplicar."""
+    hoy = date.today()
+    df, avisos = cargar_roster_contratos(hoy)
+    for a in avisos:
+        print(f"[planilla] {a.get('TIPO')}: {a.get('DETALLE')}")
+
+    # El `estado` de cargar_roster_contratos sale del contrato con la fecha de
+    # ingreso más reciente, que NO es necesariamente el vigente: quien ascendió
+    # a supervisor conserva el contrato viejo de activador con fecha posterior y
+    # queda marcado INACTIVO. Con esto Claudia Shaskia Calle Nina, supervisora
+    # activa, salía inactiva en el tablero. cargar_demografia resuelve
+    # exactamente eso — ordena por (activo, ingreso) antes del keep="last" — así
+    # que el estado se toma de ahí y no se re-deriva acá.
+    demo, _ = cargar_demografia(hoy)
+    estado_real = {
+        str(c).strip(): str(e or "").strip().upper() == "ACTIVO" for c, e in zip(demo["celular"], demo["estado"])
+    }
+
+    filas = [
+        {
+            "nombre": _titulo(r["nombre"]),
+            "ci": str(r["ci"] or "").strip(),
+            "ciudad": _titulo(r["ciudad"]) or "La Paz",
+            # 'BEX' es el centinela que ya usaba la consulta de rrhh_bd para
+            # "sin supervisor asignado": _armar_supervisores lo descarta.
+            "supervisor": _titulo(r["supervisor"]) or "BEX",
+            "activo": estado_real.get(
+                str(r["codigo_bex"] or "").strip(),
+                str(r["estado"] or "").strip().upper() == "ACTIVO",
+            ),
+            "fecha_baja": _fecha_iso(r["fecha_baja"]),
+            "telefono": str(r["codigo_bex"] or "").strip(),
+        }
+        for _, r in df.iterrows()
+        if str(r["codigo_bex"] or "").strip()
+    ]
+
+    # CI y estado del supervisor: en la planilla el supervisor es un nombre
+    # suelto, no una llave, así que se resuelve contra las filas del propio
+    # roster. Cuatro etiquetas no resuelven a nadie (dos son ciudades mal
+    # cargadas, dos son nombres abreviados); esas quedan con CI vacío, que es
+    # el mismo placeholder que ya devolvía rrhh_bd cuando no había supervisor.
+    por_nombre = {f["nombre"].upper(): f for f in filas}
+    for f in filas:
+        jefe = por_nombre.get(f["supervisor"].upper())
+        f["supervisor_ci"] = jefe["ci"] if jefe else ""
+        f["supervisor_activo"] = jefe["activo"] if jefe else None
+    return filas
+
+
+# El roster no depende de la campaña, así que se cachea aparte de los
+# resultados: sin esto cada campaña del selector volvería a bajar la planilla
+# (dos veces, contando cargar_demografia). TTL propio y más largo — la planilla
+# la editan a mano unas pocas veces al día.
+TTL_ROSTER = 3600  # 1 h
+_roster_cache: Dict[str, Any] = {"t": 0.0, "filas": []}
+
+
+def _obtener_empleados_bnb() -> List[Dict[str, Any]]:
+    ahora = time.time()
+    if _roster_cache["filas"] and (ahora - _roster_cache["t"]) < TTL_ROSTER:
+        return _roster_cache["filas"]
+    filas = _leer_roster_planilla()
+    # Solo se cachea un roster con contenido: si la planilla falla, que el
+    # próximo request lo reintente en vez de fijar una lista vacía por una hora.
+    if filas:
+        _roster_cache["t"], _roster_cache["filas"] = ahora, filas
+    return filas
 
 
 def _contar_afiliaciones_por_celular(dbname: str, desde: str, hasta_exclusivo: str) -> Dict[str, int]:
@@ -347,46 +531,78 @@ def _contar_afiliaciones_por_celular(dbname: str, desde: str, hasta_exclusivo: s
     rrhh_bd.actividad_afiliacion_mensual — ese cubre el mes completo y
     sobrecontaría producción de fuera de la ventana."""
     conn = psycopg2.connect(
-        host=RRHH_PG_HOST, port=RRHH_PG_PORT, dbname=dbname,
-        user=RRHH_PG_USER, password=RRHH_PG_PASSWORD, connect_timeout=5
+        host=RRHH_PG_HOST,
+        port=RRHH_PG_PORT,
+        dbname=dbname,
+        user=RRHH_PG_USER,
+        password=RRHH_PG_PASSWORD,
+        connect_timeout=5,
     )
     try:
         conn.set_session(readonly=True)
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT TRIM(codigo_bex) AS celular, COUNT(DISTINCT id_afiliacion) AS cuentas
                 FROM fact_afiliaciones
                 WHERE codigo_bex IS NOT NULL AND TRIM(codigo_bex) <> ''
                   AND fecha_hora_envio >= %(desde)s AND fecha_hora_envio < %(hasta)s
                 GROUP BY 1
-            """, {"desde": desde, "hasta": hasta_exclusivo})
+            """,
+                {"desde": desde, "hasta": hasta_exclusivo},
+            )
             return {celular: cuentas for celular, cuentas in cur.fetchall()}
     finally:
         conn.close()
 
 
-def _roster_desde_bd(campana: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _detectar_sin_roster(
+    mapas: Dict[str, Dict[str, int]], telefonos: set, campana: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """Cruce INVERSO: celulares que produjeron en la ventana y no están en el
+    roster. Sin esto la app solo mira roster -> producción, así que un afiliador
+    que la planilla no tenga desaparece del tablero sin ninguna señal — que es
+    exactamente como se perdieron dos bonos antes de existir esta función.
+
+    Se devuelve el celular y las cuentas, nunca un nombre: si no está en el
+    roster no hay de dónde sacarlo, y adivinarlo desde dim_ejecutivo daría un
+    nombre que puede no corresponder al que hoy usa ese celular."""
+    por_celular: Dict[str, Dict[str, int]] = {}
+    for p in campana["proyectos"]:
+        for celular, n in mapas[p["bd"]].items():
+            if celular not in telefonos:
+                por_celular.setdefault(celular, {})[p["key"]] = n
+
+    sin_roster = [
+        {"celular": c, "cuentas": {p["key"]: cuentas.get(p["key"], 0) for p in campana["proyectos"]}}
+        for c, cuentas in por_celular.items()
+    ]
+    # Primero el que más produjo: si alguno llegó a una meta, es plata que no se
+    # está pagando y tiene que verse arriba.
+    sin_roster.sort(key=lambda x: -max(x["cuentas"].values()))
+    return sin_roster
+
+
+def _roster_desde_bd(campana: Dict[str, Any]) -> tuple:
     """Roster real cruzado con la producción de cada proyecto de la campaña.
-    Una consulta por base distinta (bnb_bd y bille_bd comparten esquema)."""
-    empleados = _obtener_empleados_activos_bnb()
+    Una consulta por base distinta (bnb_bd y bille_bd comparten esquema).
+    Devuelve (filas, celulares_sin_roster)."""
+    empleados = _obtener_empleados_bnb()
 
     mapas: Dict[str, Dict[str, int]] = {}
     for p in campana["proyectos"]:
         if p["bd"] not in mapas:
-            mapas[p["bd"]] = _contar_afiliaciones_por_celular(
-                p["bd"], campana["desde"], campana["hasta_exclusivo"]
-            )
+            mapas[p["bd"]] = _contar_afiliaciones_por_celular(p["bd"], campana["desde"], campana["hasta_exclusivo"])
 
     raw_data = []
     vistos = set()
     for e in empleados:
         tel = e["telefono"]
         if tel in vistos:
-            # Mismo celular en más de un empleado_unidad activo — caso
-            # ambiguo documentado en el proyecto de migración (10-15 casos
-            # históricos). Se omite el duplicado en vez de contar la
-            # producción dos veces.
-            print(f"Celular duplicado entre activos BNB, se omite: {tel}")
+            # Mismo celular en dos personas. Hoy la planilla no trae ninguno,
+            # pero se conserva la guarda: contar la producción dos veces sería
+            # pagar dos bonos por el mismo trabajo.
+            print(f"Celular duplicado en la planilla, se omite: {tel}")
             continue
         vistos.add(tel)
         cuentas = {p["key"]: mapas[p["bd"]].get(tel, 0) for p in campana["proyectos"]}
@@ -397,32 +613,37 @@ def _roster_desde_bd(campana: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not e["activo"] and not any(cuentas.values()):
             continue
 
-        raw_data.append({
-            "nombre": e["nombre"],
-            "ci": e["ci"],
-            "ciudad": e["ciudad"],
-            "activo": bool(e["activo"]),
-            "fecha_baja": e["fecha_baja"].isoformat() if e["fecha_baja"] else None,
-            "supervisor": e["supervisor"],
-            "supervisor_ci": e["supervisor_ci"],
-            "supervisor_activo": e["supervisor_activo"],
-            "cuentas": cuentas,
-        })
-    return raw_data
+        raw_data.append(
+            {
+                "nombre": e["nombre"],
+                "ci": e["ci"],
+                "ciudad": e["ciudad"],
+                "activo": bool(e["activo"]),
+                "fecha_baja": e["fecha_baja"],
+                "supervisor": e["supervisor"],
+                "supervisor_ci": e["supervisor_ci"],
+                "supervisor_activo": e["supervisor_activo"],
+                "cuentas": cuentas,
+            }
+        )
+    return raw_data, _detectar_sin_roster(mapas, vistos, campana)
 
 
 def _roster_de_respaldo(campana: Dict[str, Any]) -> List[Dict[str, Any]]:
-    return [{
-        "nombre": r["nombre"],
-        "ci": r["ci"],
-        "ciudad": r["ciudad"],
-        "activo": r.get("activo", True),
-        "fecha_baja": r.get("fecha_baja"),
-        "supervisor": r["supervisor"],
-        "supervisor_ci": _FALLBACK_CI_SUPERVISOR.get(r["supervisor"], ""),
-        "supervisor_activo": True,
-        "cuentas": {p["key"]: r[_FALLBACK_KEY_POR_BD[p["bd"]]] for p in campana["proyectos"]},
-    } for r in FALLBACK_ROSTER]
+    return [
+        {
+            "nombre": r["nombre"],
+            "ci": r["ci"],
+            "ciudad": r["ciudad"],
+            "activo": r.get("activo", True),
+            "fecha_baja": r.get("fecha_baja"),
+            "supervisor": r["supervisor"],
+            "supervisor_ci": _FALLBACK_CI_SUPERVISOR.get(r["supervisor"], ""),
+            "supervisor_activo": True,
+            "cuentas": {p["key"]: r[_FALLBACK_KEY_POR_BD[p["bd"]]] for p in campana["proyectos"]},
+        }
+        for r in FALLBACK_ROSTER
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -431,22 +652,27 @@ def _roster_de_respaldo(campana: Dict[str, Any]) -> List[Dict[str, Any]]:
 # El selector de campañas dispara un refetch por cambio, y cada cálculo abre 3
 # conexiones a PostgreSQL. Las campañas terminadas ya no cambian, así que se
 # cachean mucho más tiempo que las vigentes.
-TTL_ACTIVA = 300      # 5 min
-TTL_PASADA = 3600     # 1 h
+TTL_ACTIVA = 300  # 5 min
+TTL_PASADA = 3600  # 1 h
 _datos_cache: Dict[str, Any] = {}
 
 
 def _calcular_incentivos(campana: Dict[str, Any]) -> Dict[str, Any]:
     raw_data: List[Dict[str, Any]] = []
+    sin_roster: List[Dict[str, Any]] = []
     es_respaldo = True
 
-    if DB_PASS and RRHH_PG_PASSWORD:
+    # Ya no se exige DB_PASSWORD: el roster salió de rrhh_bd y ahora viene de la
+    # planilla. Solo hace falta bex_ingeniero, que es quien lee la producción.
+    if RRHH_PG_PASSWORD:
         try:
-            raw_data = _roster_desde_bd(campana)
+            raw_data, sin_roster = _roster_desde_bd(campana)
             es_respaldo = not raw_data
         except Exception as e:
-            print(f"Error conectando a BD PostgreSQL: {e}")
-            raw_data = []
+            # Cae acá tanto la BD caída como la planilla ilegible: el módulo
+            # lanza a propósito si no la consigue ni online ni desde su caché.
+            print(f"Error armando el roster real: {e}")
+            raw_data, sin_roster = [], []
 
     if not raw_data:
         # Sin credenciales o con la BD caída se sirve el roster demo completo,
@@ -460,6 +686,10 @@ def _calcular_incentivos(campana: Dict[str, Any]) -> Dict[str, Any]:
         "es_respaldo": es_respaldo,
         "afiliadores": afiliadores,
         "supervisores": _armar_supervisores(afiliadores, campana),
+        # Producción que no cruza contra el roster. Viaja siempre, aunque esté
+        # vacía, para que el frontend no tenga que distinguir "sin huérfanos"
+        # de "backend viejo que todavía no manda el campo".
+        "sin_roster": sin_roster,
     }
 
 
@@ -476,9 +706,13 @@ def health():
         error_config = str(e)
     return {
         "status": "ok",
-        "database": "configurada" if (DB_PASS and RRHH_PG_PASSWORD) else "sin credenciales",
+        "database": "configurada" if RRHH_PG_PASSWORD else "sin credenciales",
         "campanas_cargadas": cargadas,
         "error_config": error_config,
+        # Ojo: igual que "database", esto solo dice que la variable existe, no
+        # que la planilla se lea. La señal real de que el roster salió bien
+        # sigue siendo es_respaldo=false en /api/incentivos/<id>.
+        "roster": "planilla de Personal",
     }
 
 
@@ -488,16 +722,19 @@ def listar_campanas():
     menos de MESES_HISTORICO meses. Sin datos pesados."""
     return {
         "meses_historico": MESES_HISTORICO,
-        "campanas": [{
-            "id": c["id"],
-            "nombre": c["nombre"],
-            "subtitulo": c.get("subtitulo", ""),
-            "periodo_texto": c.get("periodo_texto", ""),
-            "desde": c["desde"],
-            "hasta": c["hasta"],
-            "estado": c["estado"],
-            "tiene_supervisor": bool(c.get("supervisor")),
-        } for c in _campanas_visibles()]
+        "campanas": [
+            {
+                "id": c["id"],
+                "nombre": c["nombre"],
+                "subtitulo": c.get("subtitulo", ""),
+                "periodo_texto": c.get("periodo_texto", ""),
+                "desde": c["desde"],
+                "hasta": c["hasta"],
+                "estado": c["estado"],
+                "tiene_supervisor": bool(c.get("supervisor")),
+            }
+            for c in _campanas_visibles()
+        ],
     }
 
 
@@ -522,4 +759,5 @@ def get_incentivos(campana_id: str):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

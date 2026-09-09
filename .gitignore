@@ -46,3 +46,9 @@ Thumbs.db
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Cache local de la planilla de Personal (personal/config.py::DAT_DIR).
+# Es la nomina completa con CI y celulares: nunca se versiona, igual que en
+# el repo BNB/procesos.
+dat/
+*.xlsx

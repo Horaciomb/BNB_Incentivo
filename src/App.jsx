@@ -6,7 +6,7 @@ import { generarReporte } from './export'
 
 import CampaignPicker from './components/CampaignPicker'
 import ProjectTabs from './components/ProjectTabs'
-import { CargandoPanel, ErrorPanel, RespaldoBanner } from './components/StateBanner'
+import { CargandoPanel, ErrorPanel, RespaldoBanner, SinRosterBanner } from './components/StateBanner'
 
 import RulesSection from './sections/RulesSection'
 import PodiumSection from './sections/PodiumSection'
@@ -249,6 +249,11 @@ export default function App() {
       </header>
 
       {data?.es_respaldo && <RespaldoBanner />}
+
+      {/* Solo con datos reales: sobre el roster demo el cruce no significa nada. */}
+      {!data?.es_respaldo && (
+        <SinRosterBanner sinRoster={data?.sin_roster} meta={proyecto?.meta} />
+      )}
 
       {error && <ErrorPanel mensaje={error} onReintentar={() => setReintento(n => n + 1)} />}
 
