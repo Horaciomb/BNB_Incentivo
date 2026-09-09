@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Any
@@ -8,7 +9,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 
-from personal.planilla_personal import cargar_demografia, cargar_roster_contratos
+# Este archivo vive como server.py en el repo y como api/main.py en el
+# servidor, donde el servicio arranca `uvicorn api.main:app` desde la carpeta
+# de arriba: ahi la raiz de imports es convocatoria\, no api\, y `personal`
+# quedaba invisible. Con esto la carpeta propia siempre entra al path y el
+# import absoluto funciona igual en los dos lados. Mismo patron que los
+# ejecutar.py del repo procesos. Tiene que ir ANTES del import de personal.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from personal.planilla_personal import cargar_demografia, cargar_roster_contratos  # noqa: E402
 
 # Carga .env si existe (patron de las demas apps BNB en el servidor: Caddy
 # bloquea servir .env como estatico globalmente). Sin archivo, no hace nada
