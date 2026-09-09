@@ -28,8 +28,15 @@ if ($remoto -and $local -ne $remoto.Trim()) {
     Write-Host "   AVISO: HEAD difiere de origin/$rama - lo que se despliega no esta pusheado." -ForegroundColor Yellow
 }
 
+# $AppDir viene con barras normales porque asi lo consume scp. Del lado del
+# servidor las ejecuta cmd, que con `mkdir C:/Proyectos/...` lee el `/P` como
+# un switch y contesta "La sintaxis del comando no es correcta". El bug no se
+# veia en la linea de api\ porque esa carpeta ya existe y el `if not exist`
+# corta antes de llegar al mkdir.
+$AppDirWin = $AppDir.Replace('/', '\')
+
 Write-Host "-> Subiendo codigo del backend (server.py -> api/main.py)..."
-ssh $Servidor "if not exist $AppDir\api mkdir $AppDir\api"
+ssh $Servidor "if not exist $AppDirWin\api mkdir $AppDirWin\api"
 scp "$root\server.py" "${Servidor}:/$AppDir/api/main.py"
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: scp server.py fallo" -ForegroundColor Red; exit 1 }
 
@@ -38,7 +45,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: scp server.py fallo" -ForegroundCo
 # asi no se sube __pycache__, y sobre todo no se sube el cache dat\ con la
 # nomina completa si alguna vez cae dentro de la carpeta.
 Write-Host "-> Subiendo personal\ (lectura de la planilla de Personal)..."
-ssh $Servidor "if not exist $AppDir\api\personal mkdir $AppDir\api\personal"
+ssh $Servidor "if not exist $AppDirWin\api\personal mkdir $AppDirWin\api\personal"
 foreach ($f in @("__init__.py", "config.py", "planilla_personal.py")) {
     scp "$root\personal\$f" "${Servidor}:/$AppDir/api/personal/$f"
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: scp personal\$f fallo" -ForegroundColor Red; exit 1 }
