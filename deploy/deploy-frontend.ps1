@@ -22,7 +22,13 @@ $WebParent = "C:/Proyectos/BNB/web"
 $Tmp = "$WebParent/_deploy_tmp_convocatoria_$Sello"
 
 Write-Host "-> Subiendo nueva version a $Tmp..."
-ssh $Servidor "if not exist $WebParent\_deploy_tmp_convocatoria_$Sello mkdir $WebParent\_deploy_tmp_convocatoria_$Sello"
+# Contrabarras, como en el resto del script: del lado del servidor esto lo
+# ejecuta cmd, y `mkdir C:/Proyectos/...` le hace leer el `/P` como un switch
+# ("La sintaxis del comando no es correcta"). Era la unica linea que se habia
+# quedado sin el -replace; el scp de abajo tapaba el problema creando el
+# directorio por su cuenta, asi que el error se imprimia y el deploy seguia.
+$TmpWin = $Tmp -replace '/', '\'
+ssh $Servidor "if not exist $TmpWin mkdir $TmpWin"
 scp -o ConnectTimeout=30 -r ".\dist\*" "${Servidor}:/$Tmp/"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: scp fallo - la app SIGUE ARRIBA con la version anterior" -ForegroundColor Red
